@@ -1,0 +1,241 @@
+/* root styles */
+:root {
+  --primary-color: #ff6b6b;
+  --secondary-color: #f9f871;
+  --tertiary-color: #f9f871;
+  --dark-color: #333;
+  --light-color: #f4f4f4;
+  --white-color: #fff;
+  --black-color: #000;
+  --font-color: #333;
+  --font-color-light: #f4f4f4;
+  --font-color-dark: #333;
+  --font-color-white: #fff;
+  --font-color-black: #000;
+  --font-family: "Poppins", sans-serif;
+  --font-size: 1rem;
+  --font-weight: 400;
+  --line-height: 1.5;
+  --pallet-dark-blue: #010f24;
+  --pallet-orange: #fe9000;
+  --pallet-green: #028090;
+  --pallet-red: #f45b69;
+  --pallet-brown: #621b00;
+  --pallet-grey: #818aa3;
+  --pallet-dark-grey: #56607c;
+  --pallet-light-grey: #b5bcce;
+  --pallet-lighter-grey: #dce1ec;
+  --pallet-light-blue: #7db0ff;
+  --pallet-lighter-blue: #98c0fc;
+  --pallet-lightest-blue: #afcaf1;
+  --pallet-main-blue: #010f24;
+  --pallet-border-blue: #95979c;
+  --pallet-blue: #00327e;
+  --pallet-pink: #ad6fc1;
+
+  /* Semantic surface tokens — used app-wide so pages don't need per-component dark styling */
+  --app-bg: #f4f6fa;
+  --surface-bg: #ffffff;
+  --surface-bg-alt: #f5f7fa;
+  --surface-border: #e2e6ee;
+  --surface-text: #0c1222;
+  --surface-text-muted: #56607c;
+
+  /* Tinted panels/table headers/chips (info, success, warning, danger states) */
+  --tint-info-bg: #e3f2fd;
+  --tint-success-bg: #e8f5e9;
+  --tint-warning-bg: #fff3e0;
+  --tint-danger-bg: #ffebee;
+  --tint-danger-hover-bg: #ffcdd2;
+  --tint-danger-border: #fecaca;
+
+  color-scheme: light;
+}
+
+/* Dark mode — flip semantic tokens + accent palette. Toggled via data-theme on <html>. */
+:root[data-theme="dark"] {
+  --pallet-dark-blue: #cfe0ff;
+  --pallet-orange: #ffab40;
+  --pallet-green: #35c2d1;
+  --pallet-red: #ff8a93;
+  --pallet-brown: #d99a6c;
+  --pallet-grey: #a6aec4;
+  --pallet-dark-grey: #c7ccdb;
+  --pallet-light-grey: #4a5170;
+  --pallet-lighter-grey: #2a3049;
+  --pallet-light-blue: #7db0ff;
+  --pallet-lighter-blue: #5c93ea;
+  --pallet-lightest-blue: #3f6bb0;
+  --pallet-main-blue: #cfe0ff;
+  --pallet-border-blue: #4a5170;
+  --pallet-blue: #6ea1ff;
+  --pallet-pink: #d79bea;
+
+  --app-bg: #0b1020;
+  --surface-bg: #141a2e;
+  --surface-bg-alt: #1b2338;
+  --surface-border: #2b3350;
+  --surface-text: #e7ebf5;
+  --surface-text-muted: #a6aec4;
+
+  --tint-info-bg: rgba(110, 161, 255, 0.16);
+  --tint-success-bg: rgba(53, 194, 209, 0.16);
+  --tint-warning-bg: rgba(255, 171, 64, 0.16);
+  --tint-danger-bg: rgba(255, 138, 147, 0.16);
+  --tint-danger-hover-bg: rgba(255, 138, 147, 0.3);
+  --tint-danger-border: rgba(255, 138, 147, 0.4);
+
+  color-scheme: dark;
+}
+
+html[data-theme="dark"] body {
+  background-color: var(--app-bg);
+  color: var(--surface-text);
+}
+
+/* Global Styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: var(--font-family);
+  font-weight: var(--font-weight);
+}
+
+/* Poppins Font */
+.poppins-thin {
+  font-family: "Poppins", sans-serif;
+  font-weight: 100;
+  font-style: normal;
+}
+
+.poppins-extralight {
+  font-family: "Poppins", sans-serif;
+  font-weight: 200;
+  font-style: normal;
+}
+
+.poppins-light {
+  font-family: "Poppins", sans-serif;
+  font-weight: 300;
+  font-style: normal;
+}
+
+.poppins-regular {
+  font-family: "Poppins", sans-serif;
+  font-weight: 400;
+  font-style: normal;
+}
+
+.poppins-medium {
+  font-family: "Poppins", sans-serif;
+  font-weight: 500;
+  font-style: normal;
+}
+
+.poppins-semibold {
+  font-family: "Poppins", sans-serif;
+  font-weight: 600;
+  font-style: normal;
+}
+
+.poppins-bold {
+  font-family: "Poppins", sans-serif;
+  font-weight: 700;
+  font-style: normal;
+}
+
+.poppins-extrabold {
+  font-family: "Poppins", sans-serif;
+  font-weight: 800;
+  font-style: normal;
+}
+
+.poppins-black {
+  font-family: "Poppins", sans-serif;
+  font-weight: 900;
+  font-style: normal;
+}
+
+.poppins-thin-italic {
+  font-family: "Poppins", sans-serif;
+  font-weight: 100;
+  font-style: italic;
+}
+
+.poppins-extralight-italic {
+  font-family: "Poppins", sans-serif;
+  font-weight: 200;
+  font-style: italic;
+}
+
+.poppins-light-italic {
+  font-family: "Poppins", sans-serif;
+  font-weight: 300;
+  font-style: italic;
+}
+
+.poppins-regular-italic {
+  font-family: "Poppins", sans-serif;
+  font-weight: 400;
+  font-style: italic;
+}
+
+.poppins-medium-italic {
+  font-family: "Poppins", sans-serif;
+  font-weight: 500;
+  font-style: italic;
+}
+
+.poppins-semibold-italic {
+  font-family: "Poppins", sans-serif;
+  font-weight: 600;
+  font-style: italic;
+}
+
+.poppins-bold-italic {
+  font-family: "Poppins", sans-serif;
+  font-weight: 700;
+  font-style: italic;
+}
+
+.poppins-extrabold-italic {
+  font-family: "Poppins", sans-serif;
+  font-weight: 800;
+  font-style: italic;
+}
+
+.poppins-black-italic {
+  font-family: "Poppins", sans-serif;
+  font-weight: 900;
+  font-style: italic;
+}
+
+/* Modern browsers (Chrome, Edge, Safari) */
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: #b5bcce;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #7db0ff;
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #b5bcce;
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #7db0ff transparent;
+}
+
+/* Fallback for IE */
+.scrollable-div {
+  -ms-overflow-style: scrollbar; /* Force visible scrollbar in IE */
+}

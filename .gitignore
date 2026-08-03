@@ -1,0 +1,6 @@
+# Root-level ignores. Each subproject (backend/, sky-sample-website-frontend/)
+# has its own .gitignore for project-specific rules.
+
+**/node_modules
+.DS_Store
+Thumbs.db

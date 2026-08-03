@@ -1,0 +1,10 @@
+# Laravel — point all requests to the public/ folder
+# Deploy URL example: https://finance.skytechsl.com/pos/backend/public/
+# If your host document root is /pos/backend (not public), this file is required.
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Send everything to public/
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>

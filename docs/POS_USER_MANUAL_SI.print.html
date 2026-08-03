@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="si">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sky POS — පරිශීලක අත්පොත</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Sinhala:wght@400;600;700&family=Noto+Sans+Mono&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --text: #1a1a1a;
+      --muted: #555;
+      --border: #ddd;
+      --accent: #1565c0;
+      --bg-code: #f5f5f5;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Noto Sans Sinhala", "Iskoola Pota", sans-serif;
+      font-size: 11pt;
+      line-height: 1.65;
+      color: var(--text);
+      max-width: 210mm;
+      margin: 0 auto;
+      padding: 12mm 15mm;
+    }
+    h1 {
+      font-size: 22pt;
+      color: var(--accent);
+      border-bottom: 3px solid var(--accent);
+      padding-bottom: 8px;
+      margin-top: 0;
+      page-break-after: avoid;
+    }
+    h2 {
+      font-size: 15pt;
+      color: var(--accent);
+      margin-top: 1.4em;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 4px;
+      page-break-after: avoid;
+    }
+    h3 {
+      font-size: 12.5pt;
+      margin-top: 1.1em;
+      page-break-after: avoid;
+    }
+    p { margin: 0.5em 0; }
+    ul, ol { margin: 0.4em 0; padding-left: 1.4em; }
+    li { margin: 0.2em 0; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 0.8em 0;
+      font-size: 10pt;
+      page-break-inside: avoid;
+    }
+    th, td {
+      border: 1px solid var(--border);
+      padding: 6px 8px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th { background: #e8f0fe; font-weight: 700; }
+    tr:nth-child(even) td { background: #fafafa; }
+    code, pre {
+      font-family: "Noto Sans Mono", monospace;
+      font-size: 9pt;
+      background: var(--bg-code);
+    }
+    code { padding: 1px 4px; border-radius: 3px; }
+    pre {
+      padding: 10px 12px;
+      border-radius: 4px;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      border: 1px solid var(--border);
+    }
+    hr { border: none; border-top: 1px solid var(--border); margin: 1.5em 0; }
+    strong { font-weight: 700; }
+    a { color: var(--accent); text-decoration: none; }
+    blockquote {
+      margin: 0.8em 0;
+      padding: 8px 12px;
+      border-left: 4px solid var(--accent);
+      background: #f0f7ff;
+      color: var(--muted);
+    }
+    @media print {
+      body { padding: 0; max-width: none; }
+      h2 { page-break-before: auto; }
+      a { color: inherit; }
+    }
+    .cover-note {
+      text-align: center;
+      color: var(--muted);
+      font-size: 10pt;
+      margin-bottom: 2em;
+    }
+  </style>
+</head>
+<body>
+  <p class="cover-note"><strong>Sky Smart Technologies</strong> — POS පරිශීලක අත්පොත (සිංහල)</p>
+  <h1>Sky POS — පරිශීලක අත්පොත (සිංහල)</h1>
+<p><strong>Sky Smart Technologies</strong> POS පද්ධතියේ සම්පූර්ණ මාර්ගෝපදේශය — විකිණීම්, තොග, මිලදී ගැනීම, ගෙවීම්, වාර්තා සහ සැකසීම්.</p>
+<p><strong>අනුවාදය:</strong> 1.0 | <strong>දිනය:</strong> 2026 ජූනි</p>
+<hr>
+<h2>අන්තර්ගතය</h2>
+<ol>
+<li><a href="#1-%E0%B7%84%E0%B7%90%E0%B6%B3%E0%B7%92%E0%B6%B1%E0%B7%8A%E0%B7%80%E0%B7%93%E0%B6%B8">හැඳින්වීම</a></li>
+<li><a href="#2-%E0%B6%B4%E0%B6%AF%E0%B7%8A%E0%B6%B0%E0%B6%AD%E0%B7%92%E0%B6%BA%E0%B6%A7-%E0%B6%B4%E0%B7%92%E0%B7%80%E0%B7%92%E0%B7%83%E0%B7%93%E0%B6%B8">පද්ධතියට පිවිසීම</a></li>
+<li><a href="#3-%E0%B6%B4%E0%B7%8A%E2%80%8D%E0%B6%BB%E0%B6%B0%E0%B7%8F%E0%B6%B1-%E0%B6%B8%E0%B7%99%E0%B6%B1%E0%B7%94%E0%B7%80">ප්‍රධාන මෙනුව</a></li>
+<li><a href="#4-%E0%B6%8B%E0%B6%B4%E0%B6%9A%E0%B6%BB%E0%B6%AB-%E0%B6%B4%E0%B7%94%E0%B7%80%E0%B6%BB%E0%B7%94%E0%B7%80-dashboard">උපකරණ පුවරුව (Dashboard)</a></li>
+<li><a href="#5-%E0%B7%80%E0%B7%92%E0%B6%9A%E0%B7%92%E0%B6%AB%E0%B7%93%E0%B6%B8%E0%B7%8A-sales--pos">විකිණීම් (Sales / POS)</a></li>
+<li><a href="#6-%E0%B6%9C%E0%B7%99%E0%B7%80%E0%B7%93%E0%B6%B8%E0%B7%8A-payments">ගෙවීම් (Payments)</a></li>
+<li><a href="#7-%E0%B7%80%E0%B7%92%E0%B6%BA%E0%B6%AF%E0%B6%B8%E0%B7%8A-expenses">වියදම් (Expenses)</a></li>
+<li><a href="#8-%E0%B6%9C%E0%B6%B1%E0%B7%94%E0%B6%AF%E0%B7%99%E0%B6%B1%E0%B7%94%E0%B6%9A%E0%B6%BB%E0%B7%94%E0%B7%80%E0%B6%B1%E0%B7%8A-customers">ගනුදෙනුකරුවන් (Customers)</a></li>
+<li><a href="#9-%E0%B6%B7%E0%B7%8F%E0%B6%AB%E0%B7%8A%E0%B6%A9-items">භාණ්ඩ (Items)</a></li>
+<li><a href="#10-%E0%B6%AD%E0%B7%9C%E0%B6%9C-inventory">තොග (Inventory)</a></li>
+<li><a href="#11-%E0%B6%B8%E0%B7%92%E0%B6%BD%E0%B6%AF%E0%B7%93-%E0%B6%9C%E0%B7%90%E0%B6%B1%E0%B7%93%E0%B6%B8-purchasing">මිලදී ගැනීම (Purchasing)</a></li>
+<li><a href="#12-%E0%B7%83%E0%B7%90%E0%B6%B4%E0%B6%BA%E0%B7%94%E0%B6%B8%E0%B7%8A%E0%B6%9A%E0%B6%BB%E0%B7%94%E0%B7%80%E0%B6%B1%E0%B7%8A-suppliers">සැපයුම්කරුවන් (Suppliers)</a></li>
+<li><a href="#13-%E0%B6%B1%E0%B7%90%E0%B7%80%E0%B7%8A%E0%B6%9C%E0%B6%AD-%E0%B6%9A%E0%B7%92%E0%B6%BB%E0%B7%93%E0%B6%B8-shipping">නැව්ගත කිරීම (Shipping)</a></li>
+<li><a href="#14-%E0%B6%B4%E0%B7%92%E0%B6%BB%E0%B7%92%E0%B6%B1%E0%B7%90%E0%B6%B8%E0%B7%93%E0%B6%B8%E0%B7%8A-offers">පිරිනැමීම් (Offers)</a></li>
+<li><a href="#15-%E0%B6%85%E0%B7%85%E0%B7%94%E0%B6%AD%E0%B7%8A%E0%B7%80%E0%B7%90%E0%B6%A9%E0%B7%92%E0%B6%BA%E0%B7%8F-repair">අළුත්වැඩියා (Repair)</a></li>
+<li><a href="#16-%E0%B7%80%E0%B7%8F%E0%B6%BB%E0%B7%8A%E0%B6%AD%E0%B7%8F-reports">වාර්තා (Reports)</a></li>
+<li><a href="#17-%E0%B7%83%E0%B7%90%E0%B6%9A%E0%B7%83%E0%B7%93%E0%B6%B8%E0%B7%8A-settings">සැකසීම් (Settings)</a></li>
+<li><a href="#18-%E0%B6%B4%E0%B7%9C%E0%B6%AF%E0%B7%94-%E0%B6%B4%E0%B7%8A%E2%80%8D%E0%B6%BB%E0%B7%81%E0%B7%8A%E0%B6%B1">පොදු ප්‍රශ්න</a></li>
+</ol>
+<hr>
+<h2>1. හැඳින්වීම</h2>
+<p>Sky POS යනු කුඩා හා මධ්‍යම ව්‍යාපාර සඳහා නිර්මාණය කළ <strong>විකුණුම් ස්ථාන (Point of Sale)</strong> පද්ධතියකි. මෙයින් ඔබට:</p>
+<ul>
+<li>භාණ්ඩ විකිණීම් සහ ආපසු ලැබීම් කළමනාකරණය</li>
+<li>තොග පරිමාණ සහ වටිනාකම නිරීක්ෂණය</li>
+<li>සැපයුම්කරුවන්ගෙන් භාණ්ඩ ලැබීම (මිලදී ගැනීම)</li>
+<li>ගනුදෙනුකරු ගෙවීම් සහ වියදම්</li>
+<li>පිරිනැමීම් සහ වට්ටම්</li>
+<li>වාර්තා සහ මුදල් විගණනය</li>
+</ul>
+<p>කළ හැක.</p>
+<p><strong>භාවිතා කරන්නේ කවුද:</strong> කළුණු සේවකයින්, සුපරිවේක්ෂකයින්, ගබඩා කළමනාකරුවන්.</p>
+<hr>
+<h2>2. පද්ධතියට පිවිසීම</h2>
+<h3>2.1 පළමු වර සැකසීම (Backend Configure)</h3>
+<p>නව පරිගණකයක හෝ බ්‍රවුසරයක පළමු වර භාවිතා කරන විට:</p>
+<ol>
+<li>POS විවෘත කර <strong>Configure backend</strong> (<code>/pos/configure</code>) වෙත යන්න.</li>
+<li><strong>API URL</strong> ඇතුළත් කරන්න (සර්වර ලිපිනය), උදා: <code>http://127.0.0.1:8000</code> හෝ <code>https://your-server.com</code></li>
+<li><strong>Test connection</strong> ඔබන්න — සාර්ථක නම් Save කරන්න.</li>
+<li>පසුව <strong>Login</strong> වෙතින් පරිශීලක නාමය සහ මුරපදය ඇතුළත් කරන්න.</li>
+</ol>
+<h3>2.2 ලියාපදිංචිය (Register)</h3>
+<p>නව සමාගමක් සඳහා <code>/pos/register</code> හරහා ලියාපදිංචි විය හැක. පවතින ගිණුමක් තිබේ නම් Login භාවිතා කරන්න.</p>
+<h3>2.3 මුරපදය වෙනස් කිරීම</h3>
+<p><strong>Settings → User → Profile</strong> හරහා මුරපදය වෙනස් කළ හැක.</p>
+<hr>
+<h2>3. ප්‍රධාන මෙනුව</h2>
+<p>වම් පැති තීරුවේ (Sidebar) ප්‍රධාන කොටස්:</p>
+<table>
+<thead>
+<tr>
+<th>මෙනුව</th>
+<th>මාර්ගය</th>
+<th>කාර්යය</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Dashboard</td>
+<td><code>/pos/dashboard</code></td>
+<td>දිනපතා සාරාංශය</td>
+</tr>
+<tr>
+<td>Sales</td>
+<td><code>/pos/sales</code></td>
+<td>විකිණීම්</td>
+</tr>
+<tr>
+<td>Payments</td>
+<td><code>/pos/payments</code></td>
+<td>ගෙවීම්</td>
+</tr>
+<tr>
+<td>Expenses</td>
+<td><code>/pos/expenses</code></td>
+<td>වියදම්</td>
+</tr>
+<tr>
+<td>Customers</td>
+<td><code>/pos/customers</code></td>
+<td>ගනුදෙනුකරුවන්</td>
+</tr>
+<tr>
+<td>Items</td>
+<td><code>/pos/items</code></td>
+<td>භාණ්ඩ කළමනාකරණය</td>
+</tr>
+<tr>
+<td>Inventory</td>
+<td><code>/pos/inventory</code></td>
+<td>තොග පුවරුව</td>
+</tr>
+<tr>
+<td>Purchasing</td>
+<td><code>/pos/purchasing</code></td>
+<td>මිලදී ගැනීම</td>
+</tr>
+<tr>
+<td>Suppliers</td>
+<td><code>/pos/suppliers</code></td>
+<td>සැපයුම්කරුවන්</td>
+</tr>
+<tr>
+<td>Shipping</td>
+<td><code>/pos/shipping</code></td>
+<td>නැව්ගත කිරීම</td>
+</tr>
+<tr>
+<td>Offers</td>
+<td><code>/pos/offers</code></td>
+<td>පිරිනැමීම්</td>
+</tr>
+<tr>
+<td>Repair</td>
+<td><code>/pos/repair</code></td>
+<td>අළුත්වැඩියා</td>
+</tr>
+<tr>
+<td>Reports</td>
+<td><code>/pos/reports</code></td>
+<td>වාර්තා</td>
+</tr>
+<tr>
+<td>Settings</td>
+<td><code>/pos/settings</code></td>
+<td>සැකසීම්</td>
+</tr>
+</tbody></table>
+<p>ඔබගේ <strong>භූමිකාව (Role)</strong> අනුව සමහර මෙනු සීමා වී තිබිය හැක.</p>
+<hr>
+<h2>4. උපකරණ පුවරුව (Dashboard)</h2>
+<p><strong>මාර්ගය:</strong> <code>/pos/dashboard</code></p>
+<p>උපකරණ පුවරුවේ පෙන්වන දේ:</p>
+<ul>
+<li>අද / මෙම මාසයේ <strong>විකිණීම්</strong>, <strong>මිලදී ගැනීම්</strong>, <strong>ගෙවීම්</strong>, <strong>වියදම්</strong></li>
+<li><strong>Hold Orders</strong> (රඳවා තබන ලද ඇණවුම්)</li>
+<li><strong>Low stock</strong> (අඩු තොග) භාණ්ඩ</li>
+<li><strong>Shipments</strong> (නැව්ගත කිරීම්)</li>
+<li>විකිණීම් ප්‍රවණතා ප්‍රස්ථාරය</li>
+<li>මෑත ගනුදෙනු</li>
+</ul>
+<p>දත්ත ස්වයංක්‍රීයව යාවත්කාලීන වේ — Refresh ඔබන්න අවශ්‍ය නැත.</p>
+<hr>
+<h2>5. විකිණීම් (Sales / POS)</h2>
+<h3>5.1 විකිණීම් පුවරුව</h3>
+<p><strong>මාර්ගය:</strong> <code>/pos/sales</code></p>
+<ul>
+<li>සියලු විකිණීම්, ආපසු ලැබීම්, උපුටා දැක්වීම් (Quotations) ලැයිස්තුව</li>
+<li>දිනය, ශාඛාව, ගනුදෙනු වර්ගය අනුව <strong>පෙරහන්</strong></li>
+<li>ලියපත <strong>මුද්‍රණය</strong> / බාගත කිරීම</li>
+<li>විකිණීම් <strong>සංස්කරණය</strong> / මකා දැමීම</li>
+</ul>
+<h3>5.2 නව විකිණීම (POS තිරය)</h3>
+<p><strong>මාර්ගය:</strong> <code>/pos/sales/new</code></p>
+<p>POS විකිණීම් දෙපියවරකි:</p>
+<p><strong>පියවර 1 — භාණ්ඩ තේරීම (Products)</strong></p>
+<ol>
+<li>වර්ගය (Category) හෝ සෙවුම් පෙට්ටියෙන් භාණ්ඩ සොයන්න.</li>
+<li>භාණ්ඩය තට්ටු කර <strong>කරත්තයට</strong> එක් කරන්න.</li>
+<li><strong>Retail / Wholesale</strong> මිල මාරු කිරීම (සැකසීම් අනුව)</li>
+<li>කරත්තයේ එකතුව, පිරිනැමීම් වට්ටම් (ඇත්නම්) පහළින් පෙනේ.</li>
+<li><strong>Checkout</strong> ඔබන්න.</li>
+</ol>
+<p><strong>පියවර 2 — ගෙවීම (Checkout)</strong></p>
+<ul>
+<li>ගනුදෙනුකරු තෝරන්න (අවශ්‍ය නම්)</li>
+<li>අතිරේක වට්ටම් (Manual discount — සැකසීම් අනුව)</li>
+<li><strong>Delivery / Service charge</strong> (සැකසීම් අනුව)</li>
+<li>ගෙවීම් ක්‍රමය: Cash, Card, Cheque, Credit, Bank Transfer</li>
+<li>ලැබූ මුදල / ඉතිරි මුදල</li>
+<li>විකිණීම <strong>සම්පූර්ණ කරන්න</strong> හෝ <strong>Hold</strong> (රඳවා තබන්න)</li>
+</ul>
+<h3>5.3 Hold Orders (ඇණවුම් රඳවා තැබීම)</h3>
+<ul>
+<li>ගෙවීම නොකර ඇණවුම රඳවා තැබිය හැක.</li>
+<li><strong>Hold Orders</strong> පැනලයෙන් නැවත ආරම්භ කර සම්පූර්ණ කළ හැක.</li>
+<li>Hold සම්පූර්ණ වූ විට තොග අඩු වේ.</li>
+</ul>
+<h3>5.4 තොග පරීක්ෂාව POS හි</h3>
+<p><strong>Settings → Order Settings → Allow sales for items with negative inventory</strong></p>
+<table>
+<thead>
+<tr>
+<th>සැකසීම</th>
+<th>ON</th>
+<th>OFF</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>ඍණ තොග විකිණීම</td>
+<td>තොග 0 වූ විටත් විකිණීමට ඉඩ</td>
+<td>තොග නැති විට විකිණීම අවහිර</td>
+</tr>
+<tr>
+<td>POS පණිවිඩය</td>
+<td>විකිණීමට ඉඩ</td>
+<td>&quot;Out of stock&quot; / &quot;Only X available&quot;</td>
+</tr>
+</tbody></table>
+<h3>5.5 ආපසු ලැබීම් සහ උපුටා දැක්වීම්</h3>
+<ul>
+<li>විකිණීම් පුවරුවේ Transaction Type අනුව Return හෝ Quotation පෙරහන් කරන්න.</li>
+<li><code>/pos/sales/:id/edit</code> හරහා සංස්කරණය කරන්න.</li>
+</ul>
+<hr>
+<h2>6. ගෙවීම් (Payments)</h2>
+<p><strong>මාර්ගය:</strong> <code>/pos/payments</code></p>
+<ul>
+<li>ගනුදෙනුකරු / සැපයුම්කරු <strong>ගෙවීම් ලියපත්</strong></li>
+<li>ගෙවීම් ක්‍රමය, වර්ගය, ශාඛාව, දිනය අනුව පෙරහන්</li>
+<li>නව ගෙවීම් ලියපත සෑදීම / සංස්කරණය</li>
+</ul>
+<p><strong>ගෙවීම් වර්ග:</strong> Sale, Return, Credit Note, Advance ආදිය.</p>
+<hr>
+<h2>7. වියදම් (Expenses)</h2>
+<p><strong>මාර්ගය:</strong> <code>/pos/expenses</code></p>
+<ul>
+<li>සමාගම් වියදම් ලියාපත් කිරීම</li>
+<li>වර්ගය (Category), ගෙවීම් ක්‍රමය, ශාඛාව අනුව පෙරහන්</li>
+<li><strong>New expense</strong> හරහා නව වියදම් එක් කිරීම</li>
+<li>වියදම් වර්ග කළමනාකරණය</li>
+</ul>
+<hr>
+<h2>8. ගනුදෙනුකරුවන් (Customers)</h2>
+<p><strong>මාර්ගය:</strong> <code>/pos/customers</code></p>
+<ul>
+<li>ගනුදෙනුකරු ලැයිස්තුව සහ <strong>ලැබිය යුතු මුදල් (Receivables)</strong></li>
+<li>නව ගනුදෙනුකරු එක් කිරීම / සංස්කරණය</li>
+<li><strong>Start sale</strong> — එම ගනුදෙනුකරු සමඟ විකිණීමක් ආරම්භ කිරීම (<code>/pos/sales/new?customerId=...</code>)</li>
+</ul>
+<hr>
+<h2>9. භාණ්ඩ (Items)</h2>
+<p><strong>මාර්ගය:</strong> <code>/pos/items</code></p>
+<p>භාණ්ඩය යනු විකිණීම් සහ තොගයේ <strong>මූලික වාර්තාව</strong>යි.</p>
+<h3>9.1 භාණ්ඩ පුවරුව</h3>
+<ul>
+<li>Item No, විස්තරය, වර්ගය, ශාඛාව, UOM, මිල, තොග පරිමාණය</li>
+<li>කල් ඉකුත් වීම (Expiry) තත්ත්වය</li>
+<li>Active / Inactive</li>
+</ul>
+<h3>9.2 නව භාණ්ඩයක් එක් කිරීම</h3>
+<p><strong>මාර්ගය:</strong> <code>/pos/items/new</code></p>
+<p>ප්‍රධාන ක්ෂේත්‍ර:</p>
+<table>
+<thead>
+<tr>
+<th>ක්ෂේත්‍රය</th>
+<th>විස්තරය</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Item Number</td>
+<td>භාණ්ඩ අංකය (ස්වයංක්‍රීය හෝ අතින්)</td>
+</tr>
+<tr>
+<td>Description</td>
+<td>නම / විස්තරය</td>
+</tr>
+<tr>
+<td>Category / Sub category</td>
+<td>වර්ගීකරණය</td>
+</tr>
+<tr>
+<td>Branch (Location)</td>
+<td>ශාඛාව</td>
+</tr>
+<tr>
+<td>UOM</td>
+<td>මිනුම් ඒකකය (pcs, kg, pack, l...)</td>
+</tr>
+<tr>
+<td>Selling / Wholesale price</td>
+<td>විකුණුම් මිල</td>
+</tr>
+<tr>
+<td>Purchase price</td>
+<td>මිලදී ගැනීම් මිල</td>
+</tr>
+<tr>
+<td>Qty</td>
+<td>ආරම්භක තොග (අවශ්‍ය නම්)</td>
+</tr>
+<tr>
+<td>Reorder qty</td>
+<td>අඩු තොග අනතුරු ඇඟවීම</td>
+</tr>
+<tr>
+<td>Track with inventory</td>
+<td>තොග ලුහුබැඳීම ON/OFF</td>
+</tr>
+<tr>
+<td>Expiry date</td>
+<td>කල් ඉකුත් දිනය (අවශ්‍ය නම්)</td>
+</tr>
+</tbody></table>
+<h3>9.3 වර්ග (Categories)</h3>
+<p><strong>මාර්ගය:</strong> <code>/pos/items/categories</code></p>
+<ul>
+<li>Item categories සහ sub-categories කළමනාකරණය</li>
+<li>POS තිරයේ වර්ග ටැබ් වලට භාවිතා වේ</li>
+</ul>
+<h3>9.4 භාණ්ඩ සැකසීම්</h3>
+<p><strong>මාර්ගය:</strong> <code>/pos/items/settings</code> හෝ <code>/pos/settings/item</code></p>
+<ul>
+<li>SKU, UOM ලැයිස්තුව, default discount, thresholds ආදිය</li>
+</ul>
+<hr>
+<h2>10. තොග (Inventory)</h2>
+<p><strong>මාර්ගය:</strong> <code>/pos/inventory</code></p>
+<h3>10.1 තොග පුවරුවේ තීරු</h3>
+<table>
+<thead>
+<tr>
+<th>තීරුව</th>
+<th>අර්ථය</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Item No</td>
+<td>භාණ්ඩ අංකය</td>
+</tr>
+<tr>
+<td>Description</td>
+<td>නම</td>
+</tr>
+<tr>
+<td>Branch</td>
+<td>ශාඛාව</td>
+</tr>
+<tr>
+<td>UOM</td>
+<td>මිනුම් ඒකකය</td>
+</tr>
+<tr>
+<td>Qty</td>
+<td>අතින් ඇති ප්‍රමාණය</td>
+</tr>
+<tr>
+<td>Reorder</td>
+<td>නැවත ඇණවුම් මට්ටම</td>
+</tr>
+<tr>
+<td>Expiry</td>
+<td>කල් ඉකුත් දිනය</td>
+</tr>
+<tr>
+<td>Purchase (Rs)</td>
+<td>මිලදී ගැනීම් මිල</td>
+</tr>
+<tr>
+<td>Unit Cost</td>
+<td>ඒකක පිරිවැය</td>
+</tr>
+<tr>
+<td>Value</td>
+<td>තොග වටිනාකම</td>
+</tr>
+</tbody></table>
+<p>සාරාංශ කාඩ්: <strong>stock value</strong>, <strong>items</strong>, <strong>low stock</strong>, <strong>expiring/expired</strong></p>
+<h3>10.2 ඍණ / අධික විකිණුම් තොග (Oversold)</h3>
+<p>තොග <strong>0</strong> වූ විට විකිණීම සිදු වුවහොත්:</p>
+<ul>
+<li><strong>Qty</strong> තීරුව: <code>0 pcs</code> (හෝ kg, pack)</li>
+<li>රතු පාටින්: <strong>Short 1 pcs</strong> — අඩුව ඇති ප්‍රමාණය</li>
+<li><strong>Value:</strong> Rs 0.00 (ඍණ වටිනාකම නොපෙන්වයි)</li>
+</ul>
+<p><strong>හේතුව:</strong> Order Settings හි <em>Allow sales for items with negative inventory</em> ON වී තිබීම.</p>
+<p><strong>פתרון:</strong></p>
+<ol>
+<li><strong>Purchasing</strong> හරහා තොග ලබා ගන්න</li>
+<li>හෝ ⋯ මෙනුව → <strong>Inventory adjustment</strong> — නිවැරදි ප්‍රමාණය ඇතුළත් කරන්න</li>
+<li>අනාගතයේ අවහිර කිරීමට: Order Settings හි ඉහත සැකසීම <strong>OFF</strong> කරන්න</li>
+</ol>
+<h3>10.3 පේළි ක්‍රියා (⋯ මෙනුව)</h3>
+<ul>
+<li><strong>View</strong> — විස්තර බලන්න</li>
+<li><strong>History</strong> — විකිණීම්, මිලදී ගැනීම්, චලන ඉතිහාසය</li>
+<li><strong>Edit</strong> — භාණ්ඩය සංස්කරණය</li>
+<li><strong>Cost view</strong> — පිරිවැය විගණනය</li>
+<li><strong>Inventory adjustment</strong> — තොග සංශෝධනය</li>
+<li><strong>Write-off</strong> — හානි/කල් ඉකුත් භාණ්ඩ ඉවත් කිරීම</li>
+</ul>
+<h3>10.4 UOM (මිනුම් ඒකක)</h3>
+<ul>
+<li>නව ඒකක: <strong>Items → Item Settings → Units of measure</strong></li>
+<li>භාණ්ඩයට ඒකකය: <strong>Edit item → Stock Details → Unit of measure</strong></li>
+</ul>
+<hr>
+<h2>11. මිලදී ගැනීම (Purchasing)</h2>
+<p><strong>මාර්ගය:</strong> <code>/pos/purchasing</code></p>
+<h3>11.1 මිලදී ගැනීම් පුවරුව</h3>
+<ul>
+<li>සියලු මිලදී ගැනීම් ලියපත්</li>
+<li>Invoice ID, සැපයුම්කරු, දිනය, ශාඛාව අනුව පෙරහන්</li>
+<li>ලියපත මුද්‍රණය</li>
+</ul>
+<h3>11.2 නව මිලදී ගැනීම</h3>
+<p><strong>මාර්ගය:</strong> <code>/pos/purchasing/new</code></p>
+<ol>
+<li>සැපයුම්කරු තෝරන්න</li>
+<li>ශාඛාව තෝරන්න</li>
+<li>භාණ්ඩ තෝරා ප්‍රමාණය ඇතුළත් කරන්න</li>
+<li>Checkout → සම්පූර්ණ කරන්න</li>
+<li><strong>තොග වැඩි වේ</strong> — Inventory පුවරුවෙන් තහවුරු කරන්න</li>
+</ol>
+<hr>
+<h2>12. සැපයුම්කරුවන් (Suppliers)</h2>
+<p><strong>මාර්ගය:</strong> <code>/pos/suppliers</code></p>
+<ul>
+<li>සැපයුම්කරු ලැයිස්තුව</li>
+<li><strong>ගෙවිය යුතු මුදල් (Payables)</strong> සාරාංශය</li>
+<li>නව සැපයුම්කරු / සංස්කරණය</li>
+</ul>
+<hr>
+<h2>13. නැව්ගත කිරීම (Shipping)</h2>
+<p><strong>මාර්ගය:</strong> <code>/pos/shipping</code></p>
+<ul>
+<li>නැව්ගත කිරීම් (Shipments) ලැයිස්තුව</li>
+<li>තත්ත්වය, ශාඛාව, දිනය අනුව පෙරහන්</li>
+<li>නව Shipment — බොහෝ විට විකිණීමකට සම්බන්ධ වේ</li>
+<li>Freight (ගාස්තු) සාරාංශය</li>
+</ul>
+<hr>
+<h2>14. පිරිනැමීම් (Offers)</h2>
+<p><strong>මාර්ගය:</strong> <code>/pos/offers</code></p>
+<h3>14.1 පිරිනැමීම් වර්ග</h3>
+<table>
+<thead>
+<tr>
+<th>වර්ගය</th>
+<th>යෙදෙන්නේ</th>
+<th>උදාහරණය</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Product offer</strong></td>
+<td>නිශ්චිත භාණ්ඩ</td>
+<td>3+ ගත් විට 8% වට්ටම්</td>
+</tr>
+<tr>
+<td><strong>Order offer</strong></td>
+<td>සම්පූර්ණ ඇණවුම</td>
+<td>Rs 5000+ වූ විට 10% වට්ටම්</td>
+</tr>
+<tr>
+<td><strong>Promo offer</strong></td>
+<td>ප්‍රොමෝ කේතය</td>
+<td>SAVE5 කේතයෙන් 5%</td>
+</tr>
+</tbody></table>
+<h3>14.2 පිරිනැමීමක් සෑදීම</h3>
+<p><strong>මාර්ගය:</strong> <code>/pos/offers/new</code></p>
+<ol>
+<li><strong>Name</strong> — අනිවාර්ය නම</li>
+<li><strong>Discount type</strong> — Product හෝ Order</li>
+<li><strong>Apply offer on</strong> — Retail only / Wholesale only / Retail &amp; Wholesale</li>
+<li>Product: භාණ්ඩ තෝරා නීති සක්‍රීය කරන්න</li>
+<li>Order: Min order total සහ/හෝ Promo code නීති</li>
+<li>Active දින / දිනවල වගකීම</li>
+<li>Save</li>
+</ol>
+<h3>14.3 POS හි ස්වයංක්‍රීය යෙදීම</h3>
+<p>POS හි පිරිනැමීම් බොහෝ විට <strong>ස්වයංක්‍රීයව</strong> යෙදේ:</p>
+<ol>
+<li>කරත්තයේ පිරිනැමීම් භාණ්ඩ තිබේ නම් → Product offer</li>
+<li>ඇණවුම් එකතුව අවම මුදලට ළඟා වේ නම් → Order offer</li>
+<li>ප්‍රොමෝ කේතය නිවැරදි නම් → Promo offer</li>
+</ol>
+<p>Product සහ Order දෙකම යෙදේ නම් — <strong>වැඩි වට්ටම්</strong> දෙන එක තෝරයි.</p>
+<h3>14.4 පිරිනැමීම් නොයෙදෙන විට පරීක්ෂා කරන්න</h3>
+<ul>
+<li>Order Settings → <strong>Allow offer</strong> ON ද?</li>
+<li>අවම ඇණවුම ළඟා වුණා ද?</li>
+<li>Retail/Wholesale ගැලපෙනවා ද?</li>
+<li>Product offer: ප්‍රමාණ නීතිය (උදා: 3+) සපුරා තිබේ ද?</li>
+</ul>
+<hr>
+<h2>15. අළුත්වැඩියා (Repair)</h2>
+<p><strong>මාර්ගය:</strong> <code>/pos/repair</code></p>
+<ul>
+<li>අළුත්වැඩියා මධ්‍යස්ථානයට යවන භාණ්ඩ</li>
+<li><strong>Send</strong> (<code>/pos/repair/send</code>) — භාණ්ඩ යැවීම</li>
+<li><strong>Receive</strong> (<code>/pos/repair/receive</code>) — භාණ්ඩ ලැබීම</li>
+<li>අළුත්වැඩියා තොග පුවරුව</li>
+</ul>
+<hr>
+<h2>16. වාර්තා (Reports)</h2>
+<p><strong>මාර්ගය:</strong> <code>/pos/reports</code></p>
+<h3>16.1 වාර්තා කාණ්ඩ</h3>
+<table>
+<thead>
+<tr>
+<th>කාණ්ඩය</th>
+<th>උදාහරණ වාර්තා</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Sales</strong></td>
+<td>Sales summary, details, returns, customer payment</td>
+</tr>
+<tr>
+<td><strong>Expense</strong></td>
+<td>Expense summary</td>
+</tr>
+<tr>
+<td><strong>Item</strong></td>
+<td>Reorder items, expiry, inventory summary, write-off</td>
+</tr>
+<tr>
+<td><strong>Customer</strong></td>
+<td>Customer list, outstanding, aging, activity</td>
+</tr>
+<tr>
+<td><strong>Supplier</strong></td>
+<td>Supplier detail, activity</td>
+</tr>
+<tr>
+<td><strong>Purchase</strong></td>
+<td>Purchase details, supplier payment</td>
+</tr>
+<tr>
+<td><strong>Finance</strong></td>
+<td>Cash in hand, profit, income/expenses, end of day</td>
+</tr>
+<tr>
+<td><strong>Audit</strong></td>
+<td>Audit report, transaction summary</td>
+</tr>
+</tbody></table>
+<h3>16.2 වාර්තාවක් බැලීම</h3>
+<ol>
+<li>කාණ්ඩය තෝරන්න</li>
+<li>වාර්තාව තෝරන්න</li>
+<li>දින පරාසය සහ ශාඛාව තෝරන්න</li>
+<li>ප්‍රතිඵලය බලන්න / නිර්යාත කරන්න</li>
+</ol>
+<hr>
+<h2>17. සැකසීම් (Settings)</h2>
+<p><strong>මාර්ගය:</strong> <code>/pos/settings</code></p>
+<h3>17.1 සැකසීම් ප්‍රධාන කොටස්</h3>
+<table>
+<thead>
+<tr>
+<th>කොටස</th>
+<th>මාර්ගය</th>
+<th>කාර්යය</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>User</strong></td>
+<td><code>/pos/settings/user</code></td>
+<td>Profile, Users, Roles</td>
+</tr>
+<tr>
+<td><strong>Company</strong></td>
+<td><code>/pos/settings/company</code></td>
+<td>සමාගම් විස්තර, logo, ශාඛා, මුදල් වර්ගය</td>
+</tr>
+<tr>
+<td><strong>Item</strong></td>
+<td><code>/pos/settings/item</code></td>
+<td>භාණ්ඩ සැකසීම්, UOM</td>
+</tr>
+<tr>
+<td><strong>Inventory</strong></td>
+<td><code>/pos/settings/inventory</code></td>
+<td>තොග, costing, locations</td>
+</tr>
+<tr>
+<td><strong>Order</strong></td>
+<td><code>/pos/settings/order</code></td>
+<td>POS හැසියර, hold, negative stock, offers</td>
+</tr>
+<tr>
+<td><strong>Hardware</strong></td>
+<td><code>/pos/settings/hardware</code></td>
+<td>මුද්‍රකය, receipt, cash drawer</td>
+</tr>
+<tr>
+<td><strong>Employee</strong></td>
+<td><code>/pos/settings/employee</code></td>
+<td>සේවක වාර්තා</td>
+</tr>
+<tr>
+<td><strong>Email</strong></td>
+<td><code>/pos/settings/email</code></td>
+<td>ඊමේල් SMTP</td>
+</tr>
+<tr>
+<td><strong>Notification</strong></td>
+<td><code>/pos/settings/notification</code></td>
+<td>විකිණීම්/ගෙවීම් දැනුම්දීම්</td>
+</tr>
+<tr>
+<td><strong>Bank</strong></td>
+<td><code>/pos/settings/bank</code></td>
+<td>බැංකු ගිණුම්</td>
+</tr>
+<tr>
+<td><strong>Alert</strong></td>
+<td><code>/pos/settings/alert</code></td>
+<td>Expiry, cheque අනතුරු ඇඟවීම</td>
+</tr>
+<tr>
+<td><strong>Payment</strong></td>
+<td><code>/pos/settings/payment</code></td>
+<td>ගෙවීම් ක්‍රම</td>
+</tr>
+<tr>
+<td><strong>Tax</strong></td>
+<td><code>/pos/settings/tax</code></td>
+<td>VAT අනුපාත</td>
+</tr>
+<tr>
+<td><strong>Subscription</strong></td>
+<td><code>/pos/settings/subscription</code></td>
+<td>දායකත්වය</td>
+</tr>
+<tr>
+<td><strong>API</strong></td>
+<td><code>/pos/settings/api</code></td>
+<td>API keys, webhooks</td>
+</tr>
+</tbody></table>
+<h3>17.2 Order Settings — වැදගත් සැකසීම්</h3>
+<table>
+<thead>
+<tr>
+<th>සැකසීම</th>
+<th>අර්ථය</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Allow sales for items with negative inventory</td>
+<td>තොග 0 වූ විට විකිණීම</td>
+</tr>
+<tr>
+<td>Allow delivery / service charge</td>
+<td>බෙදාහැරීම් ගාස්තු</td>
+</tr>
+<tr>
+<td>Allow offer</td>
+<td>POS පිරිනැමීම්</td>
+</tr>
+<tr>
+<td>Allow switching wholesale / retail prices</td>
+<td>මිල මාරු කිරීම</td>
+</tr>
+<tr>
+<td>Allow order discount</td>
+<td>අතින් වට්ටම්</td>
+</tr>
+<tr>
+<td>Allow editing of hold orders</td>
+<td>Hold ඇණවුම් සංස්කරණය</td>
+</tr>
+<tr>
+<td>Default payment method</td>
+<td>පෙරනිමි ගෙවීම් ක්‍රමය</td>
+</tr>
+</tbody></table>
+<p>සැකසීම් වෙනස් කළ පසු <strong>Save</strong> කර POS නැවත භාවිතා කරන්න.</p>
+<h3>17.3 Hardware Settings</h3>
+<ul>
+<li>Receipt පළල (80mm / A4)</li>
+<li>Company header / logo</li>
+<li>මුද්‍රණයේ <strong>Sky Smart Technologies</strong> footer</li>
+</ul>
+<hr>
+<h2>18. පොදු ප්‍රශ්න</h2>
+<h3>POS හි භාණ්ඩය එක් කළ නොහැක — &quot;Out of stock&quot;</h3>
+<p>තොග 0 හෝ අවශ්‍ය ප්‍රමාණයට වඩා අඩුය. Purchasing හරහා තොග ලබා ගන්න. Negative inventory OFF ද බලන්න.</p>
+<h3>Qty 0 නමුත් &quot;Short 1 pcs&quot; පෙන්වයි</h3>
+<p>අධික විකිණුම් — <a href="#102-%E0%B6%8D%E0%B6%AB--%E0%B6%85%E0%B6%B0%E0%B7%92%E0%B6%9A-%E0%B7%80%E0%B7%92%E0%B6%9A%E0%B7%92%E0%B6%AB%E0%B7%94%E0%B6%B8%E0%B7%8A-%E0%B6%AD%E0%B7%9C%E0%B6%9C-oversold">10.2</a> බලන්න.</p>
+<h3>පිරිනැමීම් යෙදෙන්නේ නැත</h3>
+<p>Offers සක්‍රීය ද? Min order ළඟා වුණා ද? Retail/Wholesale ගැලපෙනවා ද?</p>
+<h3>ලියපත මුද්‍රණය නොවේ</h3>
+<p>Hardware Settings → මුද්‍රකය සහ receipt සැකසීම් පරීක්ෂා කරන්න.</p>
+<h3>Backend සම්බන්ධය නැත</h3>
+<p><code>/pos/configure</code> → API URL නිවැරදි ද? සර්වර ක්‍රියාත්මක ද?</p>
+<h3>මුදල් වාර්තාව නිවැරදි නැත</h3>
+<p>දින පරාසය සහ ශාඛාව පෙරහන් නිවැරදි ද? End of day වාර්තාව උත්සාහ කරන්න.</p>
+<hr>
+<h2>ඉක්මන් යොමු කාඩ් — දිනපතා වැඩ</h2>
+<pre><code>උදෑසන:  Dashboard → අඩු තොග / Hold orders පරීක්ෂා
+විකිණීම: Sales → New → භාණ්ඩ → Checkout → ගෙවීම → Receipt
+තොග:     Purchasing → New (ලැබීම්) | Inventory → Adjustment
+ගෙවීම්:  Payments → Customer receipt
+වාර්තා:  Reports → End of day / Sales summary
+</code></pre>
+<hr>
+<h2>ලේඛක හිමිකම්</h2>
+<p><strong>Sky Smart Technologies</strong> — POS පරිශීලක අත්පොත (සිංහල)<br>අනුවාදය 1.0 | 2026</p>
+<p>තාක්ෂණික API ලේඛනය: <code>backend/API_DOCUMENTATION.md</code><br>ප්‍රසාරණය: <code>sky-sample-website-frontend/DEPLOY.md</code></p>
+<hr>
+<p><em>Sky Smart Technologies — ඔබේ ව්‍යාපාරය සරල කරමු</em></p>
+
+</body>
+</html>

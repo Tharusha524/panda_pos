@@ -1,0 +1,12 @@
+{
+  "name": "pos-docs",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "pdf:si": "node generate-pdf-si.mjs"
+  },
+  "devDependencies": {
+    "marked": "^15.0.6",
+    "puppeteer-core": "^24.2.0"
+  }
+}

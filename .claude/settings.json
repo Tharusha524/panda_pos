@@ -1,0 +1,46 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(php -v)",
+      "Bash(composer -V)",
+      "Bash(npm -v)",
+      "PowerShell(composer -V)",
+      "PowerShell(php -v)",
+      "PowerShell(mysql --version)",
+      "PowerShell(Get-Command winget -ErrorAction SilentlyContinue)",
+      "PowerShell(Get-Command choco -ErrorAction SilentlyContinue)",
+      "PowerShell(Get-Command scoop -ErrorAction SilentlyContinue)",
+      "Bash(php -r \"copy\\('https://getcomposer.org/installer', 'composer-setup.php'\\);\")",
+      "PowerShell(Get-Process | Where-Object {$_.ProcessName -match 'mysql|httpd|apache'} | Select-Object ProcessName,Path)",
+      "Bash(php composer-setup.php --install-dir=. --filename=composer.phar)",
+      "Bash(rm composer-setup.php)",
+      "Bash(php composer.phar -V)",
+      "Bash(php composer.phar install --no-interaction)",
+      "Bash(cd \"e:/final_pos-system-main/backend\" && cp .env.example .env && echo copied)",
+      "Bash(php artisan *)",
+      "Bash(curl -s http://localhost:8000/up -o /dev/null -w \"HTTP %{http_code}\\\\n\")",
+      "Bash(curl -s http://localhost:8000/api/subscription/status -o /dev/null -w \"no-auth HTTP %{http_code}\\\\n\")",
+      "Bash(curl -s -X POST http://localhost:8000/api/auth/login -H \"Content-Type: application/json\" -d '{\"email\":\"admin@pos.com\",\"password\":\"admin123\"}')",
+      "Bash(powershell -Command \"Get-CimInstance Win32_Process -Filter \\\\\"name='php.exe'\\\\\" | Select-Object ProcessId,CommandLine\")",
+      "PowerShell(Get-NetTCPConnection -LocalPort 8000 -State Listen)",
+      "Bash(curl -s -i -X POST http://127.0.0.1:8000/api/auth/login -H \"Content-Type: application/json\" -d '{\"email\":\"admin@pos.com\",\"password\":\"admin123\"}')",
+      "Bash(curl -s -i http://127.0.0.1:8000/up)",
+      "Bash(curl -s -i -X POST http://127.0.0.1:8000/api/auth/register -H \"Content-Type: application/json\" -d '{}')",
+      "PowerShell(\\(Get-CimInstance Win32_Process -Filter \"ProcessId=11644\"\\).CommandLine)",
+      "Bash(curl -s -X POST http://127.0.0.1:8000/api/auth/login -H \"Content-Type: application/json\" -d '{\"email\":\"admin@pos.com\",\"password\":\"admin123\"}')",
+      "Bash(curl -s -i http://127.0.0.1:8000/api/auth/login)",
+      "Bash(curl -s -i http://127.0.0.1:8000/api/)",
+      "Bash(curl -s -i http://127.0.0.1:8000/)",
+      "PowerShell(Stop-Process -Id 11644 -Force -ErrorAction SilentlyContinue)",
+      "PowerShell(Get-NetTCPConnection -LocalPort 8000 -State Listen -ErrorAction SilentlyContinue)",
+      "PowerShell(Get-CimInstance Win32_Process -Filter \"name='php.exe'\")",
+      "Bash(curl -s -o /dev/null -w \"Frontend HTTP %{http_code}\\\\n\" http://localhost:5174/)",
+      "Bash(where chromium-cli *)",
+      "PowerShell(Get-NetTCPConnection -LocalPort 8001,5174 -State Listen -ErrorAction SilentlyContinue)",
+      "Bash(curl -s -o /dev/null -w \"backend /up: %{http_code}\\\\n\" http://localhost:8000/up)"
+    ],
+    "additionalDirectories": [
+      "e:\\final_pos-system-main\\backend"
+    ]
+  }
+}

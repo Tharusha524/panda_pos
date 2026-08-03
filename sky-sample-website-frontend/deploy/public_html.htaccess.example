@@ -1,0 +1,17 @@
+# OPTIONAL: place in public_html/.htaccess (one level ABOVE the app subfolder)
+# Use only if https://pos.dio.lk/panda_jp/ itself returns 404.
+# Merge with existing rules — do not replace blindly.
+# Replace "panda_jp" below with your actual deploy subfolder if it differs.
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Force trailing slash on /panda_jp
+    RewriteRule ^panda_jp$ /panda_jp/ [R=301,L]
+
+    # If request is under /panda_jp/ and not a real file, serve the SPA
+    RewriteCond %{REQUEST_URI} ^/panda_jp/
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^panda_jp/(.*)$ /panda_jp/index.html [L]
+</IfModule>
