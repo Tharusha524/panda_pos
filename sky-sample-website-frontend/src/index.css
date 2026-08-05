@@ -44,6 +44,7 @@
   /* Tinted panels/table headers/chips (info, success, warning, danger states) */
   --tint-info-bg: #e3f2fd;
   --tint-success-bg: #e8f5e9;
+  --tint-success-border: #bbf7d0;
   --tint-warning-bg: #fff3e0;
   --tint-danger-bg: #ffebee;
   --tint-danger-hover-bg: #ffcdd2;
@@ -80,6 +81,7 @@
 
   --tint-info-bg: rgba(110, 161, 255, 0.16);
   --tint-success-bg: rgba(53, 194, 209, 0.16);
+  --tint-success-border: rgba(53, 194, 209, 0.4);
   --tint-warning-bg: rgba(255, 171, 64, 0.16);
   --tint-danger-bg: rgba(255, 138, 147, 0.16);
   --tint-danger-hover-bg: rgba(255, 138, 147, 0.3);

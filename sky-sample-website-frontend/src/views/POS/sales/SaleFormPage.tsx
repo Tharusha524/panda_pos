@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   Box,
@@ -333,6 +333,13 @@ const SaleFormPage: React.FC = () => {
     return Math.max(0, sub - disc - offerDiscount);
   }, [linesSubTotal, lines.length, form.sub_total, form.discount, offerDiscount]);
 
+  const handleOfferChange = useCallback(
+    (patch: { offer_id?: number | null; offer_promo_code?: string | null }) => {
+      setForm((prev) => ({ ...prev, ...patch }));
+    },
+    []
+  );
+
   const offerEngine = useSaleOfferEngine({
     allowOffers,
     applicableOffers,
@@ -340,7 +347,7 @@ const SaleFormPage: React.FC = () => {
     offerPromoCode: form.offer_promo_code,
     saleDate: form.sale_date ?? "",
     lines,
-    onOfferChange: (patch) => setForm((prev) => ({ ...prev, ...patch })),
+    onOfferChange: handleOfferChange,
     onOfferDiscountChange: setOfferDiscount,
   });
 

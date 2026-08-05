@@ -5,8 +5,8 @@ import { APP_INFO } from "../config/appInfo";
 const DEFAULT_LOGO = `${import.meta.env.BASE_URL}company-logo1.jpg`;
 
 /** Logo/name for pre-auth screens (login, register, backend-configure). */
-function usePublicBranding(): { logoUrl: string; companyName: string } {
-  const { data } = useQuery({
+function usePublicBranding(): { logoUrl: string; companyName: string; isLoading: boolean } {
+  const { data, isLoading } = useQuery({
     queryKey: ["public-branding"],
     queryFn: getPublicBranding,
     staleTime: 5 * 60 * 1000,
@@ -16,6 +16,7 @@ function usePublicBranding(): { logoUrl: string; companyName: string } {
   return {
     logoUrl: data?.logo_url || DEFAULT_LOGO,
     companyName: data?.name || APP_INFO.applicationName,
+    isLoading,
   };
 }
 

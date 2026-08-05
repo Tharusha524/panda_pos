@@ -53,6 +53,11 @@
   object-fit: contain;
 }
 
+.sidebar-brand-logo-placeholder {
+  border-radius: 8px;
+  background: var(--sidebar-bg-accent);
+}
+
 .sidebar-brand-text {
   min-width: 0;
   flex: 1;

@@ -3,13 +3,18 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Bank;
+use App\Services\CompanySettingService;
 use App\Services\SaleService;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class SaleController extends Controller
 {
-    public function __construct(private SaleService $saleService)
-    {
+    public function __construct(
+        private SaleService $saleService,
+        private CompanySettingService $companySettingService,
+    ) {
     }
 
     public function index(Request $request)
@@ -242,6 +247,19 @@ class SaleController extends Controller
 
     private function validateSale(Request $request, bool $requireSalesId = true): array
     {
+        $company = $this->companySettingService->getCompanyForUser($request->user());
+        $companyId = (int) $company->id;
+
+        // Some clients (e.g. the mobile app) send the bank's name instead of
+        // its numeric ID — resolve it to the real ID before validating.
+        $bankId = $request->input('bank_id');
+        if ($bankId !== null && !is_numeric($bankId)) {
+            $bank = Bank::where('company_id', $companyId)
+                ->whereRaw('LOWER(name) = ?', [strtolower(trim((string) $bankId))])
+                ->first();
+            $request->merge(['bank_id' => $bank?->id]);
+        }
+
         return $request->validate([
             'transaction_type' => 'nullable|string|max:20',
             'order_status' => 'nullable|string|in:completed,hold,quotation',
@@ -259,7 +277,11 @@ class SaleController extends Controller
             'net_amount' => 'nullable|numeric|min:0',
             'payment_method' => 'nullable|string|max:50',
             'amount_received' => 'nullable|numeric|min:0',
-            'bank_id' => 'nullable|integer|exists:banks,id',
+            'bank_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('banks', 'id')->where(fn ($query) => $query->where('company_id', $companyId)),
+            ],
             'cheque_number' => 'nullable|string|max:50',
             'offer_applied' => 'nullable|boolean',
             'offer_id' => 'nullable|integer|exists:offers,id',
@@ -281,6 +303,8 @@ class SaleController extends Controller
             'items.*.secondary_uom' => 'nullable|string|max:50',
             'items.*.secondary_uom_qty' => 'nullable|numeric|min:0',
             'items.*.additional_details' => 'nullable|string|max:2000',
+        ], [
+            'bank_id.exists' => 'The selected bank is invalid.',
         ]);
     }
 }

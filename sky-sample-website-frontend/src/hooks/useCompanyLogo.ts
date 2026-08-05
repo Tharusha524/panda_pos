@@ -10,17 +10,23 @@ const DEFAULT_LOGO = `${import.meta.env.BASE_URL}company-logo1.jpg`;
  * uploading a logo / renaming the company there updates every place that uses
  * this hook, without a page refresh.
  */
-function useCompanyLogo(): { logoUrl: string; hasCustomLogo: boolean; companyName: string } {
-  const { data } = useQuery({
+function useCompanyLogo(): {
+  logoUrl: string;
+  hasCustomLogo: boolean;
+  companyName: string;
+  isLoading: boolean;
+} {
+  const { data, isLoading } = useQuery({
     queryKey: ["company-settings"],
     queryFn: getCompanySettings,
     staleTime: 5 * 60 * 1000,
   });
 
   return {
-    logoUrl: data?.logo_url || DEFAULT_LOGO,
+    logoUrl: isLoading ? "" : data?.logo_url || DEFAULT_LOGO,
     hasCustomLogo: Boolean(data?.logo_url),
     companyName: data?.name || APP_INFO.applicationName,
+    isLoading,
   };
 }
 

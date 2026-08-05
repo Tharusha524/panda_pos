@@ -24,7 +24,7 @@ import { getApiBaseUrl } from "../../config/apiBase";
 import usePublicBranding from "../../hooks/usePublicBranding";
 
 function LoginForm() {
-  const { logoUrl } = usePublicBranding();
+  const { logoUrl, isLoading } = usePublicBranding();
   const theme = useTheme();
   const isMdUp = useMediaQuery(theme.breakpoints.up(990));
   const { enqueueSnackbar } = useSnackbar();
@@ -93,6 +93,8 @@ function LoginForm() {
           display: "flex",
           alignSelf: "flex-start",
           width: "fit-content",
+          minWidth: 220,
+          minHeight: 72,
           alignItems: "center",
           justifyContent: "center",
           p: 1,
@@ -101,11 +103,15 @@ function LoginForm() {
           border: "1px solid #e5e7eb",
         }}
       >
-        <img
-          src={logoUrl}
-          alt="logo"
-          style={{ display: "block", height: 56, maxWidth: 220, objectFit: "contain" }}
-        />
+        {isLoading ? (
+          <CircularProgress size={28} />
+        ) : (
+          <img
+            src={logoUrl}
+            alt="logo"
+            style={{ display: "block", height: 56, maxWidth: 220, objectFit: "contain" }}
+          />
+        )}
       </Box>
       <Box>
         <Typography variant={"body2"}>

@@ -264,6 +264,7 @@ const CustomersList: React.FC = () => {
               <TableCell sx={{ fontWeight: 700 }}>Customer ID</TableCell>
               <TableCell sx={{ fontWeight: 700 }}>Customer Name</TableCell>
               <TableCell sx={{ fontWeight: 700 }}>Contact No</TableCell>
+              <TableCell sx={{ fontWeight: 700 }}>Route</TableCell>
               <TableCell sx={{ fontWeight: 700 }} align="right">
                 Credit Limit (Rs)
               </TableCell>
@@ -278,13 +279,13 @@ const CustomersList: React.FC = () => {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
+                <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
                   <CircularProgress size={28} sx={{ color: "var(--pallet-blue)" }} />
                 </TableCell>
               </TableRow>
             ) : paginatedCustomers.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} align="center" sx={{ py: 4, color: "text.secondary" }}>
+                <TableCell colSpan={7} align="center" sx={{ py: 4, color: "text.secondary" }}>
                   No customers yet. Click Add to create one.
                 </TableCell>
               </TableRow>
@@ -294,6 +295,7 @@ const CustomersList: React.FC = () => {
                   <TableCell>{customer.customer_id}</TableCell>
                   <TableCell sx={{ fontWeight: 500 }}>{customer.customer_name}</TableCell>
                   <TableCell>{customer.contact_no}</TableCell>
+                  <TableCell>{customer.route || "—"}</TableCell>
                   <TableCell align="right">{formatRs(customer.credit_limit)}</TableCell>
                   <TableCell align="right">{formatRs(customer.net_balance)}</TableCell>
                   <TableCell align="center">

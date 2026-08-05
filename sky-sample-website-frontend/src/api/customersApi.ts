@@ -37,6 +37,7 @@ export interface Customer {
   language?: string | null;
   inventory_location?: string | null;
   location: string | null;
+  route: string | null;
   customer_type_id?: number | null;
   customer_discount?: number;
   advance_payments_total?: number;
@@ -82,6 +83,7 @@ export type CustomerPayload = {
   language?: string | null;
   inventory_location?: string | null;
   location?: string | null;
+  route: string;
   customer_type_id?: number | null;
   customer_discount?: number;
   advance_payment?: number;

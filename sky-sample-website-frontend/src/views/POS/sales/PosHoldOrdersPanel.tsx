@@ -149,8 +149,8 @@ const PosHoldOrdersPanel: React.FC<PosHoldOrdersPanelProps> = ({
                       mb: 0.85,
                       borderRadius: 1.5,
                       border: "1px solid",
-                      borderColor: isActive ? "#1565c0" : "#dbe3ec",
-                      bgcolor: isActive ? "#e8f0fe" : "#fff",
+                      borderColor: isActive ? "var(--pallet-blue)" : "var(--surface-border)",
+                      bgcolor: isActive ? "var(--tint-info-bg)" : "var(--surface-bg)",
                       overflow: "hidden",
                     }}
                   >
@@ -159,7 +159,7 @@ const PosHoldOrdersPanel: React.FC<PosHoldOrdersPanelProps> = ({
                         px: 1,
                         py: 0.85,
                         cursor: "pointer",
-                        borderBottom: isOpen ? "1px solid #edf2f7" : "none",
+                        borderBottom: isOpen ? "1px solid var(--surface-border)" : "none",
                       }}
                       onClick={() => setOpenHoldId((prev) => (prev === sale.id ? null : sale.id))}
                     >
@@ -195,7 +195,7 @@ const PosHoldOrdersPanel: React.FC<PosHoldOrdersPanelProps> = ({
                                 gap: 0.75,
                                 py: 0.45,
                                 borderBottom:
-                                  idx < items.length - 1 ? "1px dashed #e5e7eb" : "none",
+                                  idx < items.length - 1 ? "1px dashed var(--surface-border)" : "none",
                               }}
                             >
                               <Box

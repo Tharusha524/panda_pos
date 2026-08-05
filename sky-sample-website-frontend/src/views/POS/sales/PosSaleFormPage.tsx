@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState } from "react";
+﻿import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSnackbar } from "notistack";
@@ -290,6 +290,13 @@ const PosSaleFormPage: React.FC = () => {
 
   const showOffers = allowOffers;
 
+  const handleOfferChange = useCallback(
+    (patch: { offer_id?: number | null; offer_promo_code?: string | null }) => {
+      setForm((prev) => ({ ...prev, ...patch }));
+    },
+    []
+  );
+
   const offerEngine = useSaleOfferEngine({
     allowOffers: showOffers,
     applicableOffers,
@@ -298,7 +305,7 @@ const PosSaleFormPage: React.FC = () => {
     saleDate: form.sale_date ?? "",
     pricingMode: salePricingMode,
     lines,
-    onOfferChange: (patch) => setForm((prev) => ({ ...prev, ...patch })),
+    onOfferChange: handleOfferChange,
     onOfferDiscountChange: setOfferDiscount,
     onOfferPreviewChange: setOfferPreview,
   });
@@ -1006,12 +1013,10 @@ const PosSaleFormPage: React.FC = () => {
         : null,
       payment_method: paymentMethod,
       amount_received: paymentMethod === "Credit" ? netAmount : amountReceived,
-      bank_id: chequeDetails?.bank_id ?? null,
-      cheque_number: chequeDetails?.cheque_number ?? null,
+      bank_id: null,
+      cheque_number: null,
       items: linesToPayload(lines),
-      notes: chequeDetails
-        ? `Cheque ${chequeDetails.cheque_number} â€” ${chequeDetails.bank_name}`
-        : form.notes,
+      notes: chequeDetails ? `Cheque payment - ${chequeDetails.bank_name}` : form.notes,
       ...(activeHoldSaleId && holdPin.trim() ? { hold_pin: holdPin.trim() } : {}),
     };
   };
@@ -1042,7 +1047,7 @@ const PosSaleFormPage: React.FC = () => {
     }
     if (paymentMethod === "Cheque" && !chequeDetails) {
       setChequeDialogOpen(true);
-      enqueueSnackbar("Enter cheque and bank details", { variant: "warning" });
+      enqueueSnackbar("Enter cheque bank details", { variant: "warning" });
       return;
     }
     if (paymentMethod !== "Credit" && amountReceived < netAmount) {
@@ -1187,8 +1192,7 @@ const PosSaleFormPage: React.FC = () => {
       <PosChequeBankDialog
         open={chequeDialogOpen}
         onClose={() => setChequeDialogOpen(false)}
-        initialBankId={chequeDetails?.bank_id}
-        initialChequeNumber={chequeDetails?.cheque_number}
+        initialBankName={chequeDetails?.bank_name}
         onConfirm={(d) => {
           setChequeDetails(d);
           setAmountReceived(netAmount);

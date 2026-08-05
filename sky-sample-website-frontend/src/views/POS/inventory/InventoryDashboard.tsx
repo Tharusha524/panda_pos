@@ -246,7 +246,7 @@ const InventoryDashboard: React.FC = () => {
 
       {isError && <Typography color="error" sx={{ mb: 2 }}>{getFriendlyErrorMessage(error, "Failed to load inventory")}</Typography>}
 
-      <TableContainer component={Paper} elevation={0} sx={{ border: "1px solid #e5e7eb", borderRadius: 1 }}>
+      <TableContainer component={Paper} elevation={0} sx={{ border: "1px solid var(--surface-border)", borderRadius: 1 }}>
         <Table size="small" stickyHeader>
           <TableHead sx={{ bgcolor: "var(--surface-bg-alt)" }}>
             <TableRow>
@@ -274,9 +274,9 @@ const InventoryDashboard: React.FC = () => {
                 hover
                 sx={{
                   bgcolor: isItemExpired(item)
-                    ? "#ffebee"
+                    ? "var(--tint-danger-bg)"
                     : isLowStock(item)
-                      ? "#fff8e1"
+                      ? "var(--tint-warning-bg)"
                       : undefined,
                 }}
               >

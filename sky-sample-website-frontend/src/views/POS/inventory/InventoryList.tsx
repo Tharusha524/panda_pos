@@ -272,7 +272,7 @@ const InventoryList: React.FC = () => {
       <TableContainer
         component={Paper}
         elevation={0}
-        sx={{ border: "1px solid #e5e7eb", borderRadius: 1 }}
+        sx={{ border: "1px solid var(--surface-border)", borderRadius: 1 }}
       >
         <Table size="small">
           <TableHead sx={{ bgcolor: "var(--surface-bg-alt)" }}>
@@ -457,7 +457,7 @@ const InventoryList: React.FC = () => {
           }}
           rowsPerPageOptions={[10, 25, 50]}
           labelRowsPerPage="Rows per page:"
-          sx={{ borderTop: "1px solid #e5e7eb" }}
+          sx={{ borderTop: "1px solid var(--surface-border)" }}
         />
       </TableContainer>
 

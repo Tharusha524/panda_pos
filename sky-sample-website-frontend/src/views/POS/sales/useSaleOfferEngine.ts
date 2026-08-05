@@ -139,7 +139,9 @@ export function useSaleOfferEngine({
     if (!allowOffers) return;
 
     if (lines.length === 0) {
-      onOfferChange({ offer_id: null, offer_promo_code: null });
+      if (offerId != null || offerPromoCode != null) {
+        onOfferChange({ offer_id: null, offer_promo_code: null });
+      }
       return;
     }
 

@@ -112,7 +112,7 @@ const SalesDashboardTableRow: React.FC<SalesDashboardTableRowProps> = ({
         hover
         sx={{
           "& > *": { borderBottom: open ? "unset" : undefined },
-          bgcolor: isReturn ? "#fef2f2" : isHold ? "#fff8e1" : undefined,
+          bgcolor: isReturn ? "var(--tint-danger-bg)" : isHold ? "var(--tint-warning-bg)" : undefined,
         }}
       >
         <TableCell width={48}>

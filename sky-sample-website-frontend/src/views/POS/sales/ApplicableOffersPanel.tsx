@@ -67,7 +67,7 @@ const ApplicableOffersPanel: React.FC<ApplicableOffersPanelProps> = ({
       sx={{
         p: compact ? 1 : 1.25,
         bgcolor: "var(--surface-bg-alt)",
-        borderColor: "#e2e8f0",
+        borderColor: "var(--surface-border)",
       }}
     >
       <Typography
@@ -99,8 +99,8 @@ const ApplicableOffersPanel: React.FC<ApplicableOffersPanelProps> = ({
                   mb: 0.5,
                   borderRadius: 1,
                   border: "1px solid",
-                  borderColor: selected ? "#86efac" : "#e2e8f0",
-                  bgcolor: selected ? "#f0fdf4" : "#fff",
+                  borderColor: selected ? "var(--tint-success-border)" : "var(--surface-border)",
+                  bgcolor: selected ? "var(--tint-success-bg)" : "var(--surface-bg)",
                 }}
               >
                 {selected ? (
@@ -155,8 +155,12 @@ const ApplicableOffersPanel: React.FC<ApplicableOffersPanelProps> = ({
                   mb: 0.5,
                   borderRadius: 1,
                   border: "1px solid",
-                  borderColor: selected ? "#93c5fd" : "#e2e8f0",
-                  bgcolor: selected ? "#eff6ff" : qualifies ? "#fff" : "#f8fafc",
+                  borderColor: selected ? "var(--pallet-blue)" : "var(--surface-border)",
+                  bgcolor: selected
+                    ? "var(--tint-info-bg)"
+                    : qualifies
+                      ? "var(--surface-bg)"
+                      : "var(--surface-bg-alt)",
                   opacity: qualifies || selected ? 1 : 0.85,
                 }}
               >

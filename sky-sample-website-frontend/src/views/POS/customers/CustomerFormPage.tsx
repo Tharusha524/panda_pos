@@ -47,6 +47,7 @@ const EMPTY: CustomerPayload = {
   first_name: "",
   business_name: "",
   contact_no: "",
+  route: "",
   allow_duplicate_phone: false,
   email: "",
   date_of_birth: "",
@@ -99,7 +100,7 @@ const CustomerFormPage: React.FC = () => {
 
   const [form, setForm] = useState<CustomerPayload>(EMPTY);
   const [phoneLocal, setPhoneLocal] = useState("");
-  const [errors, setErrors] = useState<{ first_name?: string; phone?: string }>({});
+  const [errors, setErrors] = useState<{ first_name?: string; phone?: string; route?: string }>({});
   const [typeDialogOpen, setTypeDialogOpen] = useState(false);
 
   const { data, isLoading } = useQuery({
@@ -137,6 +138,7 @@ const CustomerFormPage: React.FC = () => {
         first_name: data.first_name,
         business_name: data.business_name ?? "",
         contact_no: data.contact_no,
+        route: data.route ?? "",
         allow_duplicate_phone: data.allow_duplicate_phone ?? false,
         email: data.email ?? "",
         date_of_birth: data.date_of_birth ?? "",
@@ -175,12 +177,15 @@ const CustomerFormPage: React.FC = () => {
   };
 
   const validate = (): boolean => {
-    const next: { first_name?: string; phone?: string } = {};
+    const next: { first_name?: string; phone?: string; route?: string } = {};
     if (!form.first_name.trim()) {
       next.first_name = "Customer name is required";
     }
     if (!phoneLocal.trim()) {
       next.phone = "Phone number is required";
+    }
+    if (!form.route?.trim()) {
+      next.route = "Route is required";
     }
     setErrors(next);
     return Object.keys(next).length === 0;
@@ -283,6 +288,23 @@ const CustomerFormPage: React.FC = () => {
                 InputProps={{
                   startAdornment: <InputAdornment position="start">{PHONE_PREFIX}</InputAdornment>,
                 }}
+                sx={fieldSx}
+                InputLabelProps={{ shrink: true }}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                size="small"
+                label="Route"
+                required
+                value={form.route ?? ""}
+                onChange={(e) => {
+                  setField("route", e.target.value);
+                  if (errors.route) setErrors((p) => ({ ...p, route: undefined }));
+                }}
+                error={!!errors.route}
+                helperText={errors.route ?? "Helps staff locate this customer"}
                 sx={fieldSx}
                 InputLabelProps={{ shrink: true }}
               />

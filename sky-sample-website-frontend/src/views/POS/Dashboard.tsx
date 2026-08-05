@@ -68,7 +68,7 @@ const TYPE_COLORS: Record<PosRecentTransaction["type"], string> = {
   expense: "#dc2626",
 };
 
-const DEFAULT_TX_COLOR = "#64748b";
+const DEFAULT_TX_COLOR = "var(--surface-text-muted)";
 
 function getTxType(tx: PosRecentTransaction): PosRecentTransaction["type"] {
   const known: PosRecentTransaction["type"][] = [
@@ -261,13 +261,15 @@ const Dashboard: React.FC = () => {
                     <stop offset="100%" stopColor="#2563eb" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-                <XAxis dataKey="label" tick={{ fontSize: 12, fill: "#64748b" }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 12, fill: "#64748b" }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v}`} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--surface-border)" vertical={false} />
+                <XAxis dataKey="label" tick={{ fontSize: 12, fill: "var(--surface-text-muted)" }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 12, fill: "var(--surface-text-muted)" }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v}`} />
                 <Tooltip
                   contentStyle={{
                     borderRadius: 12,
                     border: "1px solid var(--surface-border)",
+                    backgroundColor: "var(--surface-bg)",
+                    color: "var(--surface-text)",
                     boxShadow: "0 8px 24px rgba(15,23,42,0.08)",
                   }}
                   formatter={(value: number) => [formatRs(value), "Sales"]}

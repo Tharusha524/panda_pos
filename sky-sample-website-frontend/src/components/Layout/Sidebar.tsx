@@ -205,11 +205,15 @@ function SidebarBrand({
   onCloseMobile?: () => void;
   isMobile?: boolean;
 }) {
-  const { logoUrl, companyName } = useCompanyLogo();
+  const { logoUrl, companyName, isLoading } = useCompanyLogo();
   return (
     <div className="sidebar-brand">
       <div className="sidebar-brand-mark" aria-hidden>
-        <img src={logoUrl} alt="Company logo" className="sidebar-brand-logo" />
+        {logoUrl ? (
+          <img src={logoUrl} alt="Company logo" className="sidebar-brand-logo" />
+        ) : isLoading ? (
+          <div className="sidebar-brand-logo sidebar-brand-logo-placeholder" />
+        ) : null}
       </div>
       {!collapsed && (
         <div className="sidebar-brand-text">

@@ -1,26 +1,27 @@
 import { useEffect } from "react";
-import useCompanyLogo, { DEFAULT_LOGO } from "./useCompanyLogo";
+import useCompanyLogo from "./useCompanyLogo";
 
 /** Swaps the browser tab icon to the company's uploaded logo while the app shell is mounted. */
 function useFaviconSync(): void {
-  const { logoUrl } = useCompanyLogo();
+  const { logoUrl, isLoading } = useCompanyLogo();
 
   useEffect(() => {
+    if (isLoading || !logoUrl) {
+      return;
+    }
+
     let link = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
     if (!link) {
       link = document.createElement("link");
       link.rel = "icon";
       document.head.appendChild(link);
     }
-    const previousHref = link.href;
     link.href = logoUrl;
 
     return () => {
-      if (link) {
-        link.href = previousHref || DEFAULT_LOGO;
-      }
+      // Keep the startup icon in place when the shell unmounts.
     };
-  }, [logoUrl]);
+  }, [isLoading, logoUrl]);
 }
 
 export default useFaviconSync;

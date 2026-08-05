@@ -101,7 +101,7 @@ export default React.memo(function MainLayout({ children }: Props) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [desktopOpen, setDesktopOpen] = useState(true);
   const { user } = useCurrentUser();
-  const { logoUrl, companyName } = useCompanyLogo();
+  const { logoUrl, companyName, isLoading } = useCompanyLogo();
   useFaviconSync();
   const { mode, toggleColorMode } = useColorMode();
   const [openViewProfileDrawer, setOpenViewProfileDrawer] = useState(false);
@@ -164,6 +164,17 @@ export default React.memo(function MainLayout({ children }: Props) {
                     maxWidth: 120,
                     objectFit: "contain",
                     flexShrink: 0,
+                  }}
+                />
+              )}
+              {!logoUrl && isLoading && (
+                <Box
+                  sx={{
+                    display: { xs: "none", sm: "block" },
+                    width: 120,
+                    height: 32,
+                    borderRadius: 1,
+                    bgcolor: "var(--surface-bg-alt)",
                   }}
                 />
               )}

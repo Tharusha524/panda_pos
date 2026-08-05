@@ -166,7 +166,7 @@ const ItemsDashboard: React.FC = () => {
 
       {isError && <Typography color="error" sx={{ mb: 2 }}>{getFriendlyErrorMessage(error, "Failed to load items")}</Typography>}
 
-      <TableContainer component={Paper} elevation={0} sx={{ border: "1px solid #e5e7eb", borderRadius: 1 }}>
+      <TableContainer component={Paper} elevation={0} sx={{ border: "1px solid var(--surface-border)", borderRadius: 1 }}>
         <Table size="small" stickyHeader>
           <TableHead sx={{ bgcolor: "var(--surface-bg-alt)" }}>
             <TableRow>
