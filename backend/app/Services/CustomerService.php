@@ -416,6 +416,8 @@ class CustomerService
             'customer_type_id' => $data['customer_type_id'] ?? null,
             'customer_discount' => (float) ($data['customer_discount'] ?? 0),
             'route' => $data['route'] ?? null,
+            'latitude' => isset($data['latitude']) && $data['latitude'] !== '' ? (float) $data['latitude'] : null,
+            'longitude' => isset($data['longitude']) && $data['longitude'] !== '' ? (float) $data['longitude'] : null,
         ], $overrides);
     }
 
@@ -469,6 +471,8 @@ class CustomerService
             'location' => $customer->location ?? $customer->inventory_location,
             'inventory_location' => $customer->inventory_location ?? $customer->location,
             'route' => $customer->route,
+            'latitude' => $customer->latitude !== null ? (float) $customer->latitude : null,
+            'longitude' => $customer->longitude !== null ? (float) $customer->longitude : null,
         ];
 
         if (!$detailed) {

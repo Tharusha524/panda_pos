@@ -207,6 +207,8 @@ class CustomerController extends Controller
             'inventory_location' => 'nullable|string|max:100',
             'location' => 'nullable|string|max:100',
             'route' => "{$req}|string|max:255",
+            'latitude' => 'nullable|numeric|between:-90,90',
+            'longitude' => 'nullable|numeric|between:-180,180',
             'customer_type_id' => 'nullable|integer',
             'customer_discount' => 'nullable|numeric|min:0',
             'advance_payment' => 'nullable|numeric|min:0',

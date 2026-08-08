@@ -40,6 +40,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $inventory_location
  * @property string|null $location
  * @property string|null $route
+ * @property float|int|string|null $latitude
+ * @property float|int|string|null $longitude
  * @property int|null $customer_type_id
  * @property float|int|string|null $customer_discount
  * @property-read Company|null $company
@@ -80,6 +82,8 @@ class Customer extends Model
         'inventory_location',
         'location',
         'route',
+        'latitude',
+        'longitude',
         'customer_type_id',
         'customer_discount',
     ];
@@ -90,6 +94,8 @@ class Customer extends Model
         'opening_balance' => 'decimal:2',
         'net_balance' => 'decimal:2',
         'customer_discount' => 'decimal:2',
+        'latitude' => 'decimal:7',
+        'longitude' => 'decimal:7',
         'date_of_birth' => 'date',
     ];
 
