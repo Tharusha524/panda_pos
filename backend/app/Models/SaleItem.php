@@ -15,6 +15,7 @@ class SaleItem extends Model
         'qty',
         'unit_price',
         'line_total',
+        'line_direction',
         'imei_serial',
         'batch_id',
         'item_batch_id',

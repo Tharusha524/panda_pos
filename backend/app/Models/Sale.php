@@ -22,6 +22,7 @@ class Sale extends Model
         'customer_name',
         'returned_from_sale_id',
         'sub_total',
+        'return_sub_total',
         'discount',
         'vat_amount',
         'vat_rate_id',
@@ -42,6 +43,7 @@ class Sale extends Model
     protected $casts = [
         'sale_date' => 'date',
         'sub_total' => 'decimal:2',
+        'return_sub_total' => 'decimal:2',
         'discount' => 'decimal:2',
         'vat_amount' => 'decimal:2',
         'service_charge' => 'decimal:2',

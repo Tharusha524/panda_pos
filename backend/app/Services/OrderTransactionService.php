@@ -23,11 +23,18 @@ class OrderTransactionService
 
     public const TRANSACTION_TYPE_QUOTATION = '1003';
 
+    public const TRANSACTION_TYPE_EXCHANGE = '1004';
+
     private const CARD_PAYMENT_KEYWORDS = ['card', 'debit', 'credit'];
 
     public static function isSalesReturn(?string $transactionType): bool
     {
         return trim((string) $transactionType) === self::TRANSACTION_TYPE_RETURN;
+    }
+
+    public static function isExchange(?string $transactionType): bool
+    {
+        return trim((string) $transactionType) === self::TRANSACTION_TYPE_EXCHANGE;
     }
 
     public function __construct(
@@ -79,7 +86,7 @@ class OrderTransactionService
         $transactionType = trim((string) ($payload['transaction_type'] ?? $existing?->transaction_type ?? self::TRANSACTION_TYPE_SALE))
             ?: self::TRANSACTION_TYPE_SALE;
 
-        if (self::isSalesReturn($transactionType)) {
+        if (self::isSalesReturn($transactionType) || self::isExchange($transactionType)) {
             $this->assertRefundCardVerification($user, $payload['refund_card_last4'] ?? $existing?->refund_card_last4 ?? null);
         }
 
@@ -118,6 +125,17 @@ class OrderTransactionService
 
         $companyId = (int) ($payload['company_id'] ?? $existing?->company_id ?? 0);
         $lines = $this->normalizeLinesWithSettings($companyId, $lines, $settings, $pricingMode);
+
+        // A whole Return bill is 100% return lines regardless of what the client sent —
+        // force it here so line_direction is always correct, matching the historical-data
+        // backfill in the line_direction migration. Exchange lines pass through as sent
+        // (a genuine mix of 'sale'/'return'); plain Sale lines default to 'sale' already.
+        if (self::isSalesReturn($transactionType)) {
+            foreach ($lines as &$line) {
+                $line['line_direction'] = 'return';
+            }
+            unset($line);
+        }
 
         $offerId = isset($payload['offer_id']) && $payload['offer_id'] !== ''
             ? (int) $payload['offer_id']
@@ -205,11 +223,23 @@ class OrderTransactionService
         }
 
         $manualDiscount = $discount;
-        $subTotal = round(array_sum(array_column($lines, 'line_total')), 2);
-        $discount = round($manualDiscount + $offerDiscount, 2);
-        $netBeforeCard = $offerDiscountType === 'product'
-            ? round($subTotal - $manualDiscount + $serviceCharge, 2)
-            : round($subTotal - $discount + $serviceCharge, 2);
+        $returnSubTotal = 0.0;
+        if (self::isExchange($transactionType)) {
+            $saleLines = array_values(array_filter($lines, fn ($l) => ($l['line_direction'] ?? 'sale') !== 'return'));
+            $returnLines = array_values(array_filter($lines, fn ($l) => ($l['line_direction'] ?? 'sale') === 'return'));
+            $subTotal = round(array_sum(array_column($saleLines, 'line_total')), 2);
+            $returnSubTotal = round(array_sum(array_column($returnLines, 'line_total')), 2);
+            $discount = round($manualDiscount + $offerDiscount, 2);
+            $netBeforeCard = $offerDiscountType === 'product'
+                ? round($subTotal - $manualDiscount + $serviceCharge - $returnSubTotal, 2)
+                : round($subTotal - $discount + $serviceCharge - $returnSubTotal, 2);
+        } else {
+            $subTotal = round(array_sum(array_column($lines, 'line_total')), 2);
+            $discount = round($manualDiscount + $offerDiscount, 2);
+            $netBeforeCard = $offerDiscountType === 'product'
+                ? round($subTotal - $manualDiscount + $serviceCharge, 2)
+                : round($subTotal - $discount + $serviceCharge, 2);
+        }
 
         $paymentMethod = trim((string) ($payload['payment_method'] ?? $existing?->payment_method ?? 'Cash'));
 
@@ -223,7 +253,7 @@ class OrderTransactionService
         }
 
         $cardCharge = 0.0;
-        if ($this->isCardPayment($paymentMethod)) {
+        if ($this->isCardPayment($paymentMethod) && (!self::isExchange($transactionType) || $netBeforeCard > 0)) {
             $percent = (float) $settings['credit_debit_card_payment_charges_percent'];
             $cardCharge = round($netBeforeCard * ($percent / 100), 2);
         }
@@ -236,6 +266,9 @@ class OrderTransactionService
         $payload['sub_total'] = $subTotal;
         $payload['discount'] = $discount;
         $payload['net_amount'] = round($netBeforeCard + $cardCharge, 2);
+        if (self::isExchange($transactionType)) {
+            $payload['return_sub_total'] = $returnSubTotal;
+        }
         if (!$offerId) {
             $payload['offer_applied'] = (bool) ($payload['offer_applied'] ?? false);
             $payload['offer_id'] = null;
@@ -342,6 +375,10 @@ class OrderTransactionService
                 $unitPrice = $expected;
             }
 
+            $lineDirection = in_array($row['line_direction'] ?? 'sale', ['sale', 'return'], true)
+                ? $row['line_direction']
+                : 'sale';
+
             $line = [
                 'item_id' => $itemId,
                 'item_number' => trim((string) ($row['item_number'] ?? $item?->item_number ?? '')) ?: null,
@@ -349,6 +386,7 @@ class OrderTransactionService
                 'qty' => $qty,
                 'unit_price' => $unitPrice,
                 'line_total' => round($qty * $unitPrice, 2),
+                'line_direction' => $lineDirection,
                 'purchase_price' => $settings['allow_purchase_price_show_in_order_screen']
                     ? ($item ? (float) ($item->purchase_price ?? 0) : null)
                     : null,

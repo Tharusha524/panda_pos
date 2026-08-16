@@ -272,9 +272,13 @@ class SaleController extends Controller
             'customer_name' => 'nullable|string|max:255',
             'returned_from_sale_id' => 'nullable|integer|exists:sales,id',
             'sub_total' => 'nullable|numeric|min:0',
+            'return_sub_total' => 'nullable|numeric|min:0',
             'discount' => 'nullable|numeric|min:0',
             'service_charge' => 'nullable|numeric|min:0',
-            'net_amount' => 'nullable|numeric|min:0',
+            // No min:0 here — an Exchange bill's net_amount can be negative (refund due).
+            // The server always recomputes the persisted net_amount from the line items
+            // in OrderTransactionService::applySaleRules(), so this only validates shape.
+            'net_amount' => 'nullable|numeric',
             'payment_method' => 'nullable|string|max:50',
             'amount_received' => 'nullable|numeric|min:0',
             'bank_id' => [
@@ -297,6 +301,7 @@ class SaleController extends Controller
             'items.*.qty' => 'nullable|numeric|min:0.01',
             'items.*.unit_price' => 'nullable|numeric|min:0',
             'items.*.line_total' => 'nullable|numeric|min:0',
+            'items.*.line_direction' => ['nullable', Rule::in(['sale', 'return'])],
             'items.*.imei_serial' => 'nullable|string|max:100',
             'items.*.batch_id' => 'nullable|string|max:100',
             'items.*.item_batch_id' => 'nullable|integer|exists:item_batches,id',

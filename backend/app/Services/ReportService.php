@@ -191,6 +191,11 @@ class ReportService
             $branchName = $branch->name;
         }
 
+        $itemId = null;
+        if (isset($filters['item_id']) && $filters['item_id'] !== '' && $filters['item_id'] !== null) {
+            $itemId = (int) $filters['item_id'];
+        }
+
         return [
             'company_id' => $company->id,
             'date_from' => $dateFrom->toDateString(),
@@ -198,8 +203,32 @@ class ReportService
             'branch_id' => $branchId,
             'branch_name' => $branchName,
             'branch_label' => $branchName ?? 'All branches',
+            'item_id' => $itemId,
             'generated_at' => now()->format('Y-m-d H:i:s'),
         ];
+    }
+
+    /**
+     * Resolves the filtered item's id/display label for a report's `filters`
+     * echo, only when the item actually exists in this company.
+     *
+     * @param  array<string, mixed>  $ctx
+     * @return array{id: int, label: string}|null
+     */
+    private function resolveItemFilterLabel(array $ctx): ?array
+    {
+        if (empty($ctx['item_id'])) {
+            return null;
+        }
+        $item = Item::where('company_id', $ctx['company_id'])->find($ctx['item_id']);
+        if (!$item) {
+            return null;
+        }
+        $label = $item->item_number
+            ? "{$item->item_number} — {$item->description}"
+            : (string) $item->description;
+
+        return ['id' => $item->id, 'label' => $label];
     }
 
     private function parseDate(mixed $value, Carbon $default): Carbon
@@ -345,6 +374,12 @@ class ReportService
         array $rows,
         array $summary = [],
         ?string $note = null,
+        /** Only passed by report functions that actually filter their query by
+         * item (see resolveItemFilterLabel) — omitted everywhere else so the
+         * mobile app doesn't echo an "Item: ..." line for a filter that had no
+         * effect on the data. */
+        ?int $itemId = null,
+        ?string $itemLabel = null,
     ): array {
         return [
             'title' => $title,
@@ -354,6 +389,8 @@ class ReportService
                 'date_to' => $ctx['date_to'],
                 'branch_id' => $ctx['branch_id'],
                 'branch_name' => $ctx['branch_label'] ?? 'All branches',
+                'item_id' => $itemId,
+                'item_name' => $itemLabel,
             ],
             'summary' => $summary,
             'columns' => $columns,
@@ -506,6 +543,13 @@ class ReportService
         $isReturn = $transactionType === OrderTransactionService::TRANSACTION_TYPE_RETURN;
         $sales = $this->completedSalesQuery($ctx)
             ->where('transaction_type', $transactionType)
+            ->when(
+                !empty($ctx['item_id']),
+                fn (Builder $q) => $q->whereHas(
+                    'items',
+                    fn (Builder $si) => $si->where('item_id', $ctx['item_id']),
+                ),
+            )
             ->orderByDesc('sale_date')
             ->orderByDesc('id')
             ->get();
@@ -520,6 +564,8 @@ class ReportService
             'discount' => round((float) $s->discount, 2),
             'net_amount' => round((float) $s->net_amount, 2),
         ])->all();
+
+        $itemFilter = $this->resolveItemFilterLabel($ctx);
 
         return $this->reportPayload(
             $ctx,
@@ -539,6 +585,9 @@ class ReportService
                 ['label' => 'Transactions', 'value' => count($rows)],
                 ['label' => 'Total Amount', 'value' => round(array_sum(array_column($rows, 'net_amount')), 2)],
             ],
+            null,
+            $itemFilter['id'] ?? null,
+            $itemFilter['label'] ?? null,
         );
     }
 
@@ -731,6 +780,9 @@ class ReportService
             ->where('track_with_inventory', true)
             ->whereColumn('qty', '<=', 'reorder_qty');
         $this->applyLocationFilter($q, $ctx);
+        if (!empty($ctx['item_id'])) {
+            $q->where('id', $ctx['item_id']);
+        }
 
         $rows = $q->orderBy('qty')->get()->map(fn (Item $i) => [
             'item_number' => $i->item_number,
@@ -739,6 +791,8 @@ class ReportService
             'qty' => round((float) $i->qty, 2),
             'reorder_qty' => round((float) $i->reorder_qty, 2),
         ])->all();
+
+        $itemFilter = $this->resolveItemFilterLabel($ctx);
 
         return $this->reportPayload(
             $ctx,
@@ -752,6 +806,9 @@ class ReportService
             ],
             $rows,
             [['label' => 'Items to Reorder', 'value' => count($rows)]],
+            null,
+            $itemFilter['id'] ?? null,
+            $itemFilter['label'] ?? null,
         );
     }
 
@@ -764,8 +821,15 @@ class ReportService
         $q = Item::where('company_id', $ctx['company_id'])
             ->where('is_active', true)
             ->whereNotNull('expiry_date')
-            ->where('expiry_date', '<=', $ctx['date_to']);
+            // Previously only checked "<= date_to", so the "from" side of the
+            // date range picker had no effect at all — every item expiring
+            // before the window opened still showed up. Filtering the full
+            // range makes the from/to picker actually do what it implies.
+            ->whereBetween('expiry_date', [$ctx['date_from'], $ctx['date_to']]);
         $this->applyLocationFilter($q, $ctx);
+        if (!empty($ctx['item_id'])) {
+            $q->where('id', $ctx['item_id']);
+        }
 
         $rows = $q->orderBy('expiry_date')->get()->map(fn (Item $i) => [
             'item_number' => $i->item_number,
@@ -774,6 +838,8 @@ class ReportService
             'expiry_date' => $i->expiry_date?->format('Y-m-d'),
             'qty' => round((float) $i->qty, 2),
         ])->all();
+
+        $itemFilter = $this->resolveItemFilterLabel($ctx);
 
         return $this->reportPayload(
             $ctx,
@@ -787,6 +853,9 @@ class ReportService
             ],
             $rows,
             [['label' => 'Expiring / Expired Items', 'value' => count($rows)]],
+            null,
+            $itemFilter['id'] ?? null,
+            $itemFilter['label'] ?? null,
         );
     }
 
@@ -798,6 +867,9 @@ class ReportService
     {
         $q = Item::where('company_id', $ctx['company_id']);
         $this->applyLocationFilter($q, $ctx);
+        if (!empty($ctx['item_id'])) {
+            $q->where('id', $ctx['item_id']);
+        }
 
         $rows = $q->orderBy('item_number')->get()->map(fn (Item $i) => [
             'item_number' => $i->item_number,
@@ -809,6 +881,8 @@ class ReportService
             'purchase_price' => round((float) $i->purchase_price, 2),
             'active' => $i->is_active ? 'Yes' : 'No',
         ])->all();
+
+        $itemFilter = $this->resolveItemFilterLabel($ctx);
 
         return $this->reportPayload(
             $ctx,
@@ -825,6 +899,9 @@ class ReportService
             ],
             $rows,
             [['label' => 'Total Items', 'value' => count($rows)]],
+            null,
+            $itemFilter['id'] ?? null,
+            $itemFilter['label'] ?? null,
         );
     }
 

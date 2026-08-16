@@ -28,6 +28,7 @@ class ReportController extends Controller
                 'date_to' => $request->query('date_to'),
                 'branch_id' => $request->query('branch_id'),
                 'location' => $request->query('location'),
+                'item_id' => $request->query('item_id'),
             ];
 
             return response()->json([

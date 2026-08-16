@@ -227,6 +227,37 @@ class PaymentService
 
     public function syncFromSale(Sale $sale): void
     {
+        if (OrderTransactionService::isExchange($sale->transaction_type)) {
+            $exchangeAmount = round((float) $sale->net_amount, 2);
+            if (abs($exchangeAmount) < 0.005) {
+                $this->deleteBySource($sale->company_id, self::SOURCE_SALE, $sale->id);
+
+                return;
+            }
+
+            PosPayment::updateOrCreate(
+                [
+                    'company_id' => $sale->company_id,
+                    'source_type' => self::SOURCE_SALE,
+                    'source_id' => $sale->id,
+                ],
+                [
+                    'payment_type' => '1008',
+                    'location' => $sale->location ?: 'Main Location',
+                    'payment_date' => $sale->sale_date,
+                    'sales_no' => $sale->sales_id,
+                    'receipt_type' => $exchangeAmount >= 0 ? 'Sale' : 'Return',
+                    'payment_method' => $sale->payment_method ?: 'Cash',
+                    'discount' => round((float) $sale->discount, 2),
+                    'paid_amount' => abs($exchangeAmount),
+                    'notes' => 'Auto from exchange '.$sale->sales_id
+                        .($exchangeAmount >= 0 ? ' (net sale)' : ' (refund due)'),
+                ]
+            );
+
+            return;
+        }
+
         $amount = round((float) $sale->net_amount, 2);
         if ($amount <= 0) {
             $this->deleteBySource($sale->company_id, self::SOURCE_SALE, $sale->id);

@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\DB;
 
 class SaleService
 {
-    private const DEFAULT_TRANSACTION_TYPES = ['1001', '1002', '1003'];
+    private const DEFAULT_TRANSACTION_TYPES = ['1001', '1002', '1003', '1004'];
 
     private const DEFAULT_SALES_TYPES = ['Retail', 'Wholesale', 'Credit Sale', 'Cash Sale'];
 
@@ -266,6 +266,28 @@ class SaleService
                 }
             }
 
+            if (OrderTransactionService::isExchange((string) ($payload['transaction_type'] ?? ''))) {
+                $returnLines = array_values(array_filter($lines, fn ($l) => ($l['line_direction'] ?? 'sale') === 'return'));
+                if ($returnLines !== []) {
+                    // No original bill is required for an exchange — the cashier just
+                    // picks the returned items directly (same trust-based trade-off
+                    // "Return without bill" already has). If a source bill IS linked
+                    // (e.g. a future client that still wants to pick one), the usual
+                    // remaining-qty and credit-refund checks still apply to it.
+                    $sourceId = (int) ($data['returned_from_sale_id'] ?? $payload['returned_from_sale_id'] ?? 0);
+                    if ($sourceId > 0) {
+                        $payload['returned_from_sale_id'] = $sourceId;
+                        $this->assertReturnWithinRemainingQty($company->id, $sourceId, $returnLines);
+                        $this->assertNoCashRefundForCreditSource(
+                            $company->id,
+                            $sourceId,
+                            (float) ($payload['net_amount'] ?? 0),
+                            (string) ($payload['payment_method'] ?? '')
+                        );
+                    }
+                }
+            }
+
             $salesId = $payload['sales_id'];
             if (Sale::where('company_id', $company->id)->where('sales_id', $salesId)->exists()) {
                 throw new Exception('Sales ID already exists.');
@@ -275,7 +297,10 @@ class SaleService
             $this->syncLineItems($sale, $lines);
 
             if (
-                OrderTransactionService::isSalesReturn((string) ($payload['transaction_type'] ?? ''))
+                (
+                    OrderTransactionService::isSalesReturn((string) ($payload['transaction_type'] ?? ''))
+                    || OrderTransactionService::isExchange((string) ($payload['transaction_type'] ?? ''))
+                )
                 && !empty($payload['returned_from_sale_id'])
                 && (int) $sale->returned_from_sale_id !== (int) $payload['returned_from_sale_id']
             ) {
@@ -352,6 +377,7 @@ class SaleService
                     'description' => $line->description,
                     'qty' => (float) $line->qty,
                     'unit_price' => (float) $line->unit_price,
+                    'line_direction' => $line->line_direction ?? 'sale',
                 ])->all());
                 $applied = $this->orderTransactionService->applySaleRules($user, $payload, $existingLines, false, $sale);
                 $payload = $this->stripInternalSaleKeys($applied['payload']);
@@ -539,6 +565,7 @@ class SaleService
                 'qty' => $line['qty'],
                 'unit_price' => $line['unit_price'],
                 'line_total' => $line['line_total'],
+                'line_direction' => $line['line_direction'] ?? 'sale',
                 'imei_serial' => $line['imei_serial'] ?? null,
                 'batch_id' => $line['batch_id'] ?? null,
                 'item_batch_id' => $line['item_batch_id'] ?? null,
@@ -581,6 +608,7 @@ class SaleService
             'item_id' => $line->item_id,
             'qty' => (float) $line->qty,
             'item_batch_id' => $line->item_batch_id,
+            'line_direction' => $line->line_direction ?? 'sale',
         ])->values()->all();
     }
 
@@ -631,7 +659,10 @@ class SaleService
             ? (int) $data['returned_from_sale_id']
             : ($existing?->returned_from_sale_id ?? null);
 
-        if (OrderTransactionService::isSalesReturn($transactionType) && !$returnedFromSaleId) {
+        if (
+            (OrderTransactionService::isSalesReturn($transactionType) || OrderTransactionService::isExchange($transactionType))
+            && !$returnedFromSaleId
+        ) {
             $returnedFromSaleId = $this->resolveReturnedFromSaleIdFromNotes(
                 $companyId,
                 (string) ($data['notes'] ?? $existing?->notes ?? '')
@@ -647,7 +678,7 @@ class SaleService
             'sale_date' => $data['sale_date'] ?? now()->toDateString(),
             'customer_id' => $customerId ?: null,
             'customer_name' => $customerName ?: null,
-            'returned_from_sale_id' => OrderTransactionService::isSalesReturn($transactionType)
+            'returned_from_sale_id' => (OrderTransactionService::isSalesReturn($transactionType) || OrderTransactionService::isExchange($transactionType))
                 ? $returnedFromSaleId
                 : null,
             'sub_total' => $subTotal,
@@ -746,6 +777,19 @@ class SaleService
         string $transactionType,
         bool $allowNegativeInventory,
     ): void {
+        if (OrderTransactionService::isExchange($transactionType)) {
+            $saleLines = array_values(array_filter($lines, fn ($l) => ($l['line_direction'] ?? 'sale') !== 'return'));
+            $returnLines = array_values(array_filter($lines, fn ($l) => ($l['line_direction'] ?? 'sale') === 'return'));
+            if ($returnLines !== []) {
+                $this->locationService->addStockForLines($companyId, $returnLines, $location);
+            }
+            if ($saleLines !== []) {
+                $this->locationService->removeStockForLines($companyId, $saleLines, $location, $allowNegativeInventory);
+            }
+
+            return;
+        }
+
         if (OrderTransactionService::isSalesReturn($transactionType)) {
             $this->locationService->addStockForLines($companyId, $lines, $location);
 
@@ -769,6 +813,19 @@ class SaleService
         string $location,
         string $transactionType,
     ): void {
+        if (OrderTransactionService::isExchange($transactionType)) {
+            $saleLines = array_values(array_filter($lines, fn ($l) => ($l['line_direction'] ?? 'sale') !== 'return'));
+            $returnLines = array_values(array_filter($lines, fn ($l) => ($l['line_direction'] ?? 'sale') === 'return'));
+            if ($returnLines !== []) {
+                $this->locationService->removeStockForLines($companyId, $returnLines, $location, true);
+            }
+            if ($saleLines !== []) {
+                $this->locationService->addStockForLines($companyId, $saleLines, $location);
+            }
+
+            return;
+        }
+
         if (OrderTransactionService::isSalesReturn($transactionType)) {
             $this->locationService->removeStockForLines($companyId, $lines, $location, true);
 
@@ -799,6 +856,7 @@ class SaleService
             'returned_from_sale_id' => $sale->returned_from_sale_id,
             'has_return' => false,
             'sub_total' => (float) $sale->sub_total,
+            'return_sub_total' => (float) ($sale->return_sub_total ?? 0),
             'discount' => (float) $sale->discount,
             'vat_amount' => (float) ($sale->vat_amount ?? 0),
             'vat_rate_id' => $sale->vat_rate_id,
@@ -825,6 +883,7 @@ class SaleService
                 'qty' => (float) $line->qty,
                 'unit_price' => (float) $line->unit_price,
                 'line_total' => (float) $line->line_total,
+                'line_direction' => $line->line_direction ?? 'sale',
                 'imei_serial' => $line->imei_serial,
                 'batch_id' => $line->batch_id,
                 'item_batch_id' => $line->item_batch_id,
@@ -967,8 +1026,11 @@ class SaleService
             throw new Exception('Original sale invoice not found.');
         }
 
-        if (OrderTransactionService::isSalesReturn($source->transaction_type)) {
-            throw new Exception('Cannot return a return transaction.');
+        if (
+            OrderTransactionService::isSalesReturn($source->transaction_type)
+            || OrderTransactionService::isExchange($source->transaction_type)
+        ) {
+            throw new Exception('Cannot return items from a return or exchange transaction.');
         }
 
         $source->load('items');
@@ -999,6 +1061,33 @@ class SaleService
                     "Return qty for {$label} exceeds remaining returnable qty ({$remainingByKey[$key]})."
                 );
             }
+        }
+    }
+
+    /**
+     * Guards against a real cash loss: if the original bill was a Credit sale,
+     * nothing was ever paid for it, so a net-negative exchange (refund due)
+     * must settle via the customer's account — never hand out cash/card refund
+     * for money that was never actually collected. Mirrors the mobile app's own
+     * payment-method lock (usePosSale.ts's returnFromCreditSale), enforced here
+     * as the authoritative backend check regardless of what any client sends.
+     */
+    private function assertNoCashRefundForCreditSource(
+        int $companyId,
+        int $sourceSaleId,
+        float $netAmount,
+        string $paymentMethod,
+    ): void {
+        if ($netAmount >= -0.005 || CustomerBalanceService::isCreditPayment($paymentMethod)) {
+            return;
+        }
+
+        $source = Sale::where('company_id', $companyId)->where('id', $sourceSaleId)->first();
+        if ($source && CustomerBalanceService::isCreditPayment($source->payment_method)) {
+            throw new Exception(
+                'This exchange results in a refund, but the original sale was on credit — '
+                .'nothing was paid in cash for it. Choose "Refund to account" as the payment method.'
+            );
         }
     }
 
@@ -1044,6 +1133,12 @@ class SaleService
         foreach ($this->getReturnDocumentsForSource($companyId, $sourceSaleId) as $returnSale) {
             $returnSale->loadMissing('items');
             foreach ($returnSale->items as $line) {
+                // A plain Return bill's rows are all returns; an Exchange bill mixes
+                // sale-direction and return-direction rows in one document — only the
+                // return-direction rows here were actually taken back from this source.
+                if (($line->line_direction ?? 'return') === 'sale') {
+                    continue;
+                }
                 $key = $this->saleReturnLineKey($line);
                 $map[$key] = round(($map[$key] ?? 0) + (float) $line->qty, 2);
             }
@@ -1063,7 +1158,10 @@ class SaleService
         }
 
         return Sale::where('company_id', $companyId)
-            ->where('transaction_type', OrderTransactionService::TRANSACTION_TYPE_RETURN)
+            ->whereIn('transaction_type', [
+                OrderTransactionService::TRANSACTION_TYPE_RETURN,
+                OrderTransactionService::TRANSACTION_TYPE_EXCHANGE,
+            ])
             ->where(function ($query) use ($sourceSaleId, $source) {
                 $query->where('returned_from_sale_id', $sourceSaleId)
                     ->orWhere('notes', 'like', 'Return for invoice '.$source->sales_id.'%');

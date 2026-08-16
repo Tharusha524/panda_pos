@@ -71,6 +71,7 @@ class SaleReceiptService
                 'qty' => (float) ($line['qty'] ?? 0),
                 'unit_price' => (float) ($line['unit_price'] ?? 0),
                 'line_total' => (float) ($line['line_total'] ?? 0),
+                'line_direction' => $line['line_direction'] ?? 'sale',
             ];
             if ($hardware['show_item_uom_on_sales_receipt']) {
                 $itemId = $line['item_id'] ?? null;
@@ -81,11 +82,13 @@ class SaleReceiptService
 
         $transactionType = (string) ($sale['transaction_type'] ?? OrderTransactionService::TRANSACTION_TYPE_SALE);
         $isReturn = OrderTransactionService::isSalesReturn($transactionType);
+        $isExchange = OrderTransactionService::isExchange($transactionType);
 
         $receipt = [
             'sales_id' => $sale['sales_id'],
             'transaction_type' => $transactionType,
             'is_return' => $isReturn,
+            'is_exchange' => $isExchange,
             'sale_date' => $sale['sale_date'],
             'location' => $sale['location'],
             'payment_method' => $sale['payment_method'],
@@ -93,6 +96,7 @@ class SaleReceiptService
                 ? ($sale['customer_name'] ?? null)
                 : null,
             'sub_total' => (float) $sale['sub_total'],
+            'return_sub_total' => (float) ($sale['return_sub_total'] ?? 0),
             'discount' => $hardware['allow_discount_on_sales_receipt']
                 ? (float) $sale['discount']
                 : 0.0,
@@ -113,7 +117,9 @@ class SaleReceiptService
         }
 
         $labels = $this->labelsForLanguage($language, $hardware['allow_dual_language_print']);
-        if ($isReturn) {
+        if ($isExchange) {
+            $labels['receipt_title'] = 'Exchange Receipt';
+        } elseif ($isReturn) {
             $labels['receipt_title'] = 'Sales Return Receipt';
         }
 
@@ -263,11 +269,13 @@ class SaleReceiptService
         return [
             'id' => $sale->id,
             'sales_id' => $sale->sales_id,
+            'transaction_type' => $sale->transaction_type,
             'sale_date' => $sale->sale_date->format('Y-m-d'),
             'location' => $sale->location,
             'customer_name' => $sale->customer_name,
             'payment_method' => $sale->payment_method,
             'sub_total' => (float) $sale->sub_total,
+            'return_sub_total' => (float) ($sale->return_sub_total ?? 0),
             'discount' => (float) $sale->discount,
             'service_charge' => (float) ($sale->service_charge ?? 0),
             'card_payment_charge' => (float) ($sale->card_payment_charge ?? 0),
@@ -281,6 +289,7 @@ class SaleReceiptService
                 'qty' => (float) $line->qty,
                 'unit_price' => (float) $line->unit_price,
                 'line_total' => (float) $line->line_total,
+                'line_direction' => $line->line_direction ?? 'sale',
             ])->values()->all(),
         ];
     }
