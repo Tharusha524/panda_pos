@@ -100,6 +100,7 @@ class ReportService
             'sales-return-summary' => $this->salesReturnSummary($ctx),
             'sales-return-details' => $this->salesDetails($ctx, OrderTransactionService::TRANSACTION_TYPE_RETURN),
             'customer-payment' => $this->customerPayments($ctx),
+            'customer-settlement' => $this->customerSettlement($ctx),
             'sales-by-category' => $this->salesByCategory($ctx),
             'customer-net-sales' => $this->customerNetSales($ctx),
             'expense-summary' => $this->expenseSummary($ctx),
@@ -147,7 +148,7 @@ class ReportService
     {
         return [
             'sales-summary', 'sales-details', 'sales-return-summary', 'sales-return-details',
-            'customer-payment', 'sales-by-category', 'customer-net-sales',
+            'customer-payment', 'customer-settlement', 'sales-by-category', 'customer-net-sales',
             'expense-summary',
             'reorder-items', 'expiry-items', 'item-list', 'inventory-in-out',
             'write-off-summary', 'write-off-details', 'inventory-summary', 'og-tog-details',
@@ -424,7 +425,7 @@ class ReportService
         $returnsCount = (clone $base)->where('transaction_type', $returnType)->count();
 
         $sales = (clone $base)
-            ->with(['items' => fn ($q) => $q->orderBy('id')])
+            ->with(['items' => fn ($q) => $q->orderBy('id'), 'bank'])
             ->orderByDesc('sale_date')
             ->orderByDesc('id')
             ->get()
@@ -491,6 +492,8 @@ class ReportService
             'discount' => round((float) $sale->discount, 2),
             'net_amount' => round((float) $sale->net_amount, 2),
             'payment_method' => $sale->payment_method,
+            'cheque_number' => $sale->cheque_number,
+            'bank_name' => $sale->bank?->name,
             'items' => $items,
         ];
     }
@@ -632,6 +635,89 @@ class ReportService
                 ['label' => 'Total Received', 'value' => $totalReceived],
             ],
             'Customer payments are money received from sales (income). Supplier and expense payments appear under Purchase reports.',
+        );
+    }
+
+    /**
+     * Customer Settlement — incoming payments from customers who took a
+     * credit sale and have since fully paid it off (current outstanding
+     * balance is 0). Payments from customers who still owe something, or
+     * that can't be tied to a real customer, are left out. Columns: Customer
+     * Name / Method / Amount Received.
+     *
+     * @param  array<string, mixed>  $ctx
+     * @return array<string, mixed>
+     */
+    private function customerSettlement(array $ctx): array
+    {
+        $payments = $this->incomingPaymentsQuery($ctx)
+            ->orderByDesc('payment_date')
+            ->get();
+
+        $saleIds = $payments->where('source_type', PaymentService::SOURCE_SALE)
+            ->pluck('source_id')->filter()->unique();
+        $customerPaymentIds = $payments->where('source_type', PaymentService::SOURCE_CUSTOMER_PAYMENT)
+            ->pluck('source_id')->filter()->unique();
+        $salesNos = $payments->whereNull('source_type')
+            ->pluck('sales_no')->filter()->unique();
+
+        $customerIdBySaleId = Sale::whereIn('id', $saleIds)->pluck('customer_id', 'id');
+        $customerIdBySalesNo = Sale::whereIn('sales_id', $salesNos)->pluck('customer_id', 'sales_id');
+
+        // concat (not merge) — these are keyed by sale id / sales_id / a plain
+        // index, and merge() combines by key, which would silently drop or
+        // overwrite unrelated customer ids whose keys happen to collide.
+        $allCustomerIds = $customerIdBySaleId->filter()->values()
+            ->concat($customerPaymentIds->values())
+            ->concat($customerIdBySalesNo->filter()->values())
+            ->unique();
+
+        $customers = Customer::whereIn('id', $allCustomerIds)
+            ->get(['id', 'customer_name', 'net_balance'])
+            ->keyBy('id');
+
+        $rows = [];
+        foreach ($payments as $p) {
+            /** @var PosPayment $p */
+            $customerId = match (true) {
+                $p->source_type === PaymentService::SOURCE_SALE && $p->source_id
+                    => $customerIdBySaleId[$p->source_id] ?? null,
+                $p->source_type === PaymentService::SOURCE_CUSTOMER_PAYMENT && $p->source_id
+                    => $p->source_id,
+                (bool) $p->sales_no => $customerIdBySalesNo[$p->sales_no] ?? null,
+                default => null,
+            };
+
+            $customer = $customerId ? $customers->get($customerId) : null;
+            // Not tied to a real customer, or that customer still owes
+            // something — not a "fully settled" row, skip it.
+            if (!$customer || abs((float) $customer->net_balance) >= 0.005) {
+                continue;
+            }
+
+            $rows[] = [
+                'customer' => $customer->customer_name,
+                'payment_method' => $p->payment_method,
+                'amount_received' => $this->signedIncomingPaymentAmount($p),
+            ];
+        }
+
+        $totalReceived = round(array_sum(array_column($rows, 'amount_received')), 2);
+
+        return $this->reportPayload(
+            $ctx,
+            'Customer Settlement',
+            [
+                ['key' => 'customer', 'label' => 'Customer Name'],
+                ['key' => 'payment_method', 'label' => 'Method'],
+                ['key' => 'amount_received', 'label' => 'Amount Received'],
+            ],
+            $rows,
+            [
+                ['label' => 'Receipts', 'value' => count($rows)],
+                ['label' => 'Total Received', 'value' => $totalReceived],
+            ],
+            'Only shows payments from customers who took a credit sale and have since fully settled their balance to zero.',
         );
     }
 
@@ -1233,8 +1319,24 @@ class ReportService
      */
     private function customerOutstanding(array $ctx): array
     {
+        // Scopes the customer list to who was given credit within the picked
+        // date range — the amount shown is still their current outstanding
+        // balance (not a historical balance as of that date), since a credit
+        // sale's balance carries forward until it's settled.
+        $creditCustomerIds = Sale::where('company_id', $ctx['company_id'])
+            ->whereBetween('sale_date', [$ctx['date_from'], $ctx['date_to']])
+            ->where(function ($sub) {
+                $sub->whereNull('order_status')
+                    ->orWhere('order_status', OrderTransactionService::ORDER_STATUS_COMPLETED);
+            })
+            ->whereRaw('LOWER(TRIM(payment_method)) = ?', ['credit'])
+            ->whereNotNull('customer_id')
+            ->pluck('customer_id')
+            ->unique();
+
         $q = Customer::where('company_id', $ctx['company_id'])
-            ->where('net_balance', '>', 0);
+            ->where('net_balance', '>', 0)
+            ->whereIn('id', $creditCustomerIds);
         $this->applyCustomerLocationFilter($q, $ctx);
 
         $rows = $q->orderByDesc('net_balance')->get()->map(fn (Customer $c) => [
