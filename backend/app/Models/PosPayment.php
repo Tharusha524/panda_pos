@@ -15,6 +15,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string|null $sales_no
  * @property string|null $receipt_type
  * @property string|null $payment_method
+ * @property string|null $cheque_number
+ * @property string|null $bank_name
  * @property string|null $discount
  * @property string|null $paid_amount
  * @property string|null $notes
@@ -33,6 +35,8 @@ class PosPayment extends Model
         'sales_no',
         'receipt_type',
         'payment_method',
+        'cheque_number',
+        'bank_name',
         'discount',
         'paid_amount',
         'notes',

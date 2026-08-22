@@ -342,6 +342,10 @@ class CustomerService
                 $user,
                 $data['location'] ?? $locked->inventory_location ?? $locked->location ?? null
             );
+            // Both optional — a cheque payment can be recorded without either
+            // filled in, same as the mobile screen allows.
+            $chequeNumber = trim((string) ($data['cheque_number'] ?? '')) ?: null;
+            $bankName = trim((string) ($data['bank_name'] ?? '')) ?: null;
 
             CustomerAdvancePayment::create([
                 'customer_id' => $locked->id,
@@ -349,7 +353,15 @@ class CustomerService
                 'notes' => $notes,
             ]);
 
-            $this->paymentService->recordCustomerPayment($locked, $payment, $paymentMethod, $notes, $location);
+            $this->paymentService->recordCustomerPayment(
+                $locked,
+                $payment,
+                $paymentMethod,
+                $notes,
+                $location,
+                $chequeNumber,
+                $bankName,
+            );
 
             $locked->net_balance = round($outstanding - $payment, 2);
             $locked->save();
@@ -360,6 +372,8 @@ class CustomerService
                 'previous_balance' => $outstanding,
                 'new_balance' => (float) $locked->net_balance,
                 'payment_method' => $paymentMethod,
+                'cheque_number' => $chequeNumber,
+                'bank_name' => $bankName,
             ];
         });
     }

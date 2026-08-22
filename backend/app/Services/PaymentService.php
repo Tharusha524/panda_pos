@@ -295,6 +295,8 @@ class PaymentService
         string $paymentMethod,
         ?string $notes = null,
         ?string $location = null,
+        ?string $chequeNumber = null,
+        ?string $bankName = null,
     ): PosPayment {
         $paidAmount = round($amount, 2);
         if ($paidAmount <= 0) {
@@ -318,6 +320,8 @@ class PaymentService
             'sales_no' => $salesNo,
             'receipt_type' => 'Customer Payment',
             'payment_method' => $paymentMethod ?: 'Cash',
+            'cheque_number' => $chequeNumber ?: null,
+            'bank_name' => $bankName ?: null,
             'discount' => 0,
             'paid_amount' => $paidAmount,
             'notes' => $notes ?: 'Credit payment from '.$customerName,

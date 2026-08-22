@@ -1340,10 +1340,8 @@ class ReportService
         $this->applyCustomerLocationFilter($q, $ctx);
 
         $rows = $q->orderByDesc('net_balance')->get()->map(fn (Customer $c) => [
-            'code' => $c->customer_code,
             'name' => $c->customer_name,
             'phone' => $c->contact_no,
-            'credit_limit' => round((float) $c->credit_limit, 2),
             'outstanding' => round((float) $c->net_balance, 2),
         ])->all();
 
@@ -1351,10 +1349,8 @@ class ReportService
             $ctx,
             'Customer Outstanding',
             [
-                ['key' => 'code', 'label' => 'Code'],
                 ['key' => 'name', 'label' => 'Name'],
                 ['key' => 'phone', 'label' => 'Phone'],
-                ['key' => 'credit_limit', 'label' => 'Credit Limit'],
                 ['key' => 'outstanding', 'label' => 'Outstanding'],
             ],
             $rows,

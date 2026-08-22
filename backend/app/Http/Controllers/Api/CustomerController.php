@@ -138,6 +138,8 @@ class CustomerController extends Controller
                 'payment_method' => 'nullable|string|max:50',
                 'notes' => 'nullable|string|max:500',
                 'location' => 'nullable|string|max:100',
+                'cheque_number' => 'nullable|string|max:50',
+                'bank_name' => 'nullable|string|max:100',
             ]);
 
             $result = $this->customerService->receivePaymentForUser($request->user(), $id, $validated);
