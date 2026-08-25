@@ -140,6 +140,7 @@ class CustomerController extends Controller
                 'location' => 'nullable|string|max:100',
                 'cheque_number' => 'nullable|string|max:50',
                 'bank_name' => 'nullable|string|max:100',
+                'sale_id' => 'nullable|integer',
             ]);
 
             $result = $this->customerService->receivePaymentForUser($request->user(), $id, $validated);
@@ -148,6 +149,40 @@ class CustomerController extends Controller
                 'success' => true,
                 'message' => 'Payment recorded successfully',
                 'data' => $result,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 400);
+        }
+    }
+
+    public function outstandingBills(Request $request, int $id)
+    {
+        try {
+            $bills = $this->customerService->outstandingBillsForUser($request->user(), $id);
+
+            return response()->json([
+                'success' => true,
+                'data' => $bills,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 400);
+        }
+    }
+
+    public function payments(Request $request, int $id)
+    {
+        try {
+            $payments = $this->customerService->paymentsForUser($request->user(), $id);
+
+            return response()->json([
+                'success' => true,
+                'data' => $payments,
             ]);
         } catch (\Exception $e) {
             return response()->json([

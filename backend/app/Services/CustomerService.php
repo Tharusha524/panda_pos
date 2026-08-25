@@ -5,6 +5,9 @@ namespace App\Services;
 use App\Models\Customer;
 use App\Models\CustomerAdvancePayment;
 use App\Models\CustomerType;
+use App\Models\PosPayment;
+use App\Models\Sale;
+use App\Models\SalePaymentAllocation;
 use App\Models\User;
 use Exception;
 use Illuminate\Support\Facades\DB;
@@ -347,13 +350,37 @@ class CustomerService
             $chequeNumber = trim((string) ($data['cheque_number'] ?? '')) ?: null;
             $bankName = trim((string) ($data['bank_name'] ?? '')) ?: null;
 
+            // Which specific old bill this payment settles — optional. When
+            // given, the payment can't exceed what's still owed on that one
+            // bill specifically (separate from the overall balance check
+            // above), so it can't be used to silently overpay one bill while
+            // under-crediting another.
+            $bill = null;
+            if (!empty($data['sale_id'])) {
+                $bill = Sale::where('company_id', $locked->company_id)
+                    ->where('customer_id', $locked->id)
+                    ->where('id', (int) $data['sale_id'])
+                    ->lockForUpdate()
+                    ->first();
+                if (!$bill) {
+                    throw new Exception('Selected bill was not found for this customer.');
+                }
+                $billAllocated = round((float) SalePaymentAllocation::where('sale_id', $bill->id)->sum('amount'), 2);
+                $billOutstanding = round((float) $bill->net_amount - $billAllocated, 2);
+                if ($payment > $billOutstanding + 0.01) {
+                    throw new Exception(
+                        'Payment cannot exceed this bill\'s outstanding amount of Rs '.number_format($billOutstanding, 2).'.'
+                    );
+                }
+            }
+
             CustomerAdvancePayment::create([
                 'customer_id' => $locked->id,
                 'amount' => $payment,
                 'notes' => $notes,
             ]);
 
-            $this->paymentService->recordCustomerPayment(
+            $posPayment = $this->paymentService->recordCustomerPayment(
                 $locked,
                 $payment,
                 $paymentMethod,
@@ -362,6 +389,14 @@ class CustomerService
                 $chequeNumber,
                 $bankName,
             );
+
+            if ($bill) {
+                SalePaymentAllocation::create([
+                    'sale_id' => $bill->id,
+                    'pos_payment_id' => $posPayment->id,
+                    'amount' => $payment,
+                ]);
+            }
 
             $locked->net_balance = round($outstanding - $payment, 2);
             $locked->save();
@@ -374,8 +409,95 @@ class CustomerService
                 'payment_method' => $paymentMethod,
                 'cheque_number' => $chequeNumber,
                 'bank_name' => $bankName,
+                'bill_number' => $bill?->sales_id,
             ];
         });
+    }
+
+    /**
+     * Individual outstanding credit bills for a customer — oldest first —
+     * used by the Receive Payment "which bill" picker. Distinct from
+     * Customer.net_balance (the overall total, unaffected by this): a bill
+     * only appears here while it's a plain credit sale with something still
+     * unallocated against it.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function outstandingBillsForUser(User $user, int $customerId): array
+    {
+        $customer = $this->findForUser($user, $customerId);
+
+        $sales = Sale::where('company_id', $customer->company_id)
+            ->where('customer_id', $customer->id)
+            ->where('transaction_type', OrderTransactionService::TRANSACTION_TYPE_SALE)
+            ->where(function ($q) {
+                $q->whereNull('order_status')
+                    ->orWhere('order_status', OrderTransactionService::ORDER_STATUS_COMPLETED);
+            })
+            ->whereRaw('LOWER(TRIM(payment_method)) = ?', ['credit'])
+            ->withSum('paymentAllocations', 'amount')
+            ->orderBy('sale_date')
+            ->orderBy('id')
+            ->get();
+
+        $bills = [];
+        foreach ($sales as $sale) {
+            $net = round((float) $sale->net_amount, 2);
+            $allocated = round((float) ($sale->payment_allocations_sum_amount ?? 0), 2);
+            $outstanding = round($net - $allocated, 2);
+            if ($outstanding <= 0.005) {
+                continue;
+            }
+            $bills[] = [
+                'sale_id' => $sale->id,
+                'bill_number' => $sale->sales_id,
+                'date' => $sale->sale_date?->format('Y-m-d'),
+                'bill_amount' => $net,
+                'paid_amount' => $allocated,
+                'outstanding_amount' => $outstanding,
+            ];
+        }
+
+        return $bills;
+    }
+
+    /**
+     * "Receive payment" records for a customer — for Customer History, which
+     * otherwise only lists their sales. Scoped to source_type
+     * CUSTOMER_PAYMENT specifically (money paid in later against the
+     * account), not payments taken at the time of a sale — those already
+     * show up as that sale's row, so including them here would double them up.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function paymentsForUser(User $user, int $customerId): array
+    {
+        $customer = $this->findForUser($user, $customerId);
+
+        $payments = PosPayment::where('company_id', $customer->company_id)
+            ->where('source_type', PaymentService::SOURCE_CUSTOMER_PAYMENT)
+            ->where('source_id', $customer->id)
+            ->orderByDesc('payment_date')
+            ->orderByDesc('id')
+            ->get();
+
+        $billNumberByPaymentId = SalePaymentAllocation::whereIn('pos_payment_id', $payments->pluck('id'))
+            ->with('sale:id,sales_id')
+            ->get()
+            ->keyBy('pos_payment_id')
+            ->map(fn (SalePaymentAllocation $a) => $a->sale?->sales_id);
+
+        return $payments->map(fn (PosPayment $p) => [
+            'id' => $p->id,
+            'date' => $p->payment_date?->format('Y-m-d'),
+            'reference' => $p->sales_no,
+            'payment_method' => $p->payment_method,
+            'cheque_number' => $p->cheque_number,
+            'bank_name' => $p->bank_name,
+            'amount' => round((float) $p->paid_amount, 2),
+            'notes' => $p->notes,
+            'bill_number' => $billNumberByPaymentId->get($p->id),
+        ])->all();
     }
 
     public function deleteForUser(User $user, int $id): void

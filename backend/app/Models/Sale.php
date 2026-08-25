@@ -73,6 +73,11 @@ class Sale extends Model
         return $this->hasMany(SaleItem::class);
     }
 
+    public function paymentAllocations(): HasMany
+    {
+        return $this->hasMany(SalePaymentAllocation::class);
+    }
+
     public function offer(): BelongsTo
     {
         return $this->belongsTo(Offer::class);

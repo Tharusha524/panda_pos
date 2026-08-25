@@ -249,6 +249,8 @@ Route::middleware(['auth:sanctum', 'throttle:120,1'])->group(function () {
         Route::post('/customers', [CustomerController::class, 'store']);
         Route::put('/customers/{id}', [CustomerController::class, 'update']);
         Route::post('/customers/{id}/receive-payment', [CustomerController::class, 'receivePayment']);
+        Route::get('/customers/{id}/outstanding-bills', [CustomerController::class, 'outstandingBills']);
+        Route::get('/customers/{id}/payments', [CustomerController::class, 'payments']);
         Route::delete('/customers/{id}', [CustomerController::class, 'destroy']);
 
         // Repair
