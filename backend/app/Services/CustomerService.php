@@ -27,6 +27,7 @@ class CustomerService
         private LocationService $locationService,
         private PaymentService $paymentService,
         private PermissionService $permissionService,
+        private CustomerBalanceService $customerBalanceService,
     ) {
     }
 
@@ -380,6 +381,7 @@ class CustomerService
                 'notes' => $notes,
             ]);
 
+            $newBalance = round($outstanding - $payment, 2);
             $posPayment = $this->paymentService->recordCustomerPayment(
                 $locked,
                 $payment,
@@ -388,6 +390,8 @@ class CustomerService
                 $location,
                 $chequeNumber,
                 $bankName,
+                $outstanding,
+                $newBalance,
             );
 
             if ($bill) {
@@ -398,7 +402,7 @@ class CustomerService
                 ]);
             }
 
-            $locked->net_balance = round($outstanding - $payment, 2);
+            $locked->net_balance = $newBalance;
             $locked->save();
 
             return [
@@ -417,9 +421,15 @@ class CustomerService
     /**
      * Individual outstanding credit bills for a customer — oldest first —
      * used by the Receive Payment "which bill" picker. Distinct from
-     * Customer.net_balance (the overall total, unaffected by this): a bill
-     * only appears here while it's a plain credit sale with something still
-     * unallocated against it.
+     * Customer.net_balance (the overall total, unaffected by this).
+     *
+     * Reuses CustomerBalanceService::balanceDeltaForSale — the exact same
+     * calculation that built net_balance in the first place — instead of a
+     * simplified "plain credit sale" filter, so a bill appears here (for the
+     * right amount) exactly when it actually added to what's owed. That
+     * calculation already covers Exchanges (a credit exchange, or a
+     * cash/card exchange that writes off a credit-sold return), not just
+     * ordinary Sales — a hand-rolled filter here previously missed those.
      *
      * @return array<int, array<string, mixed>>
      */
@@ -429,12 +439,10 @@ class CustomerService
 
         $sales = Sale::where('company_id', $customer->company_id)
             ->where('customer_id', $customer->id)
-            ->where('transaction_type', OrderTransactionService::TRANSACTION_TYPE_SALE)
             ->where(function ($q) {
                 $q->whereNull('order_status')
                     ->orWhere('order_status', OrderTransactionService::ORDER_STATUS_COMPLETED);
             })
-            ->whereRaw('LOWER(TRIM(payment_method)) = ?', ['credit'])
             ->withSum('paymentAllocations', 'amount')
             ->orderBy('sale_date')
             ->orderBy('id')
@@ -442,9 +450,14 @@ class CustomerService
 
         $bills = [];
         foreach ($sales as $sale) {
-            $net = round((float) $sale->net_amount, 2);
+            $delta = $this->customerBalanceService->balanceDeltaForSale($sale);
+            // <= 0 covers returns and exchange write-offs, both of which
+            // reduce what's owed rather than being a bill of their own.
+            if ($delta <= 0.005) {
+                continue;
+            }
             $allocated = round((float) ($sale->payment_allocations_sum_amount ?? 0), 2);
-            $outstanding = round($net - $allocated, 2);
+            $outstanding = round($delta - $allocated, 2);
             if ($outstanding <= 0.005) {
                 continue;
             }
@@ -452,7 +465,7 @@ class CustomerService
                 'sale_id' => $sale->id,
                 'bill_number' => $sale->sales_id,
                 'date' => $sale->sale_date?->format('Y-m-d'),
-                'bill_amount' => $net,
+                'bill_amount' => round($delta, 2),
                 'paid_amount' => $allocated,
                 'outstanding_amount' => $outstanding,
             ];
@@ -497,6 +510,10 @@ class CustomerService
             'amount' => round((float) $p->paid_amount, 2),
             'notes' => $p->notes,
             'bill_number' => $billNumberByPaymentId->get($p->id),
+            // Null for payments recorded before this was tracked — the
+            // reprint falls back to the customer's current balance then.
+            'previous_balance' => $p->previous_balance !== null ? (float) $p->previous_balance : null,
+            'new_balance' => $p->new_balance !== null ? (float) $p->new_balance : null,
         ])->all();
     }
 

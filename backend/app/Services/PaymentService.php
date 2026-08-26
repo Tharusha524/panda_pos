@@ -297,6 +297,11 @@ class PaymentService
         ?string $location = null,
         ?string $chequeNumber = null,
         ?string $bankName = null,
+        /** Frozen at write time — the customer's balance keeps changing
+         * afterward, so this is the only way an old receipt can still show
+         * what it was right after this specific payment. */
+        ?float $previousBalance = null,
+        ?float $newBalance = null,
     ): PosPayment {
         $paidAmount = round($amount, 2);
         if ($paidAmount <= 0) {
@@ -322,6 +327,8 @@ class PaymentService
             'payment_method' => $paymentMethod ?: 'Cash',
             'cheque_number' => $chequeNumber ?: null,
             'bank_name' => $bankName ?: null,
+            'previous_balance' => $previousBalance,
+            'new_balance' => $newBalance,
             'discount' => 0,
             'paid_amount' => $paidAmount,
             'notes' => $notes ?: 'Credit payment from '.$customerName,
