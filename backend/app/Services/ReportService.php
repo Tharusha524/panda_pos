@@ -11,6 +11,7 @@ use App\Models\PosPayment;
 use App\Models\Purchase;
 use App\Models\Sale;
 use App\Models\SaleItem;
+use App\Models\SalePaymentAllocation;
 use App\Models\Supplier;
 use App\Models\User;
 use Carbon\Carbon;
@@ -425,7 +426,7 @@ class ReportService
         $returnsCount = (clone $base)->where('transaction_type', $returnType)->count();
 
         $sales = (clone $base)
-            ->with(['items' => fn ($q) => $q->orderBy('id'), 'bank'])
+            ->with(['items' => fn ($q) => $q->orderBy('id'), 'bank', 'customer'])
             ->orderByDesc('sale_date')
             ->orderByDesc('id')
             ->get()
@@ -486,6 +487,7 @@ class ReportService
             'date' => trim($dateLabel),
             'sales_id' => $sale->sales_id,
             'customer' => $sale->customer_name ?? 'Walk-in',
+            'route' => $sale->customer?->route,
             'location' => $sale->location,
             'transaction_label' => $isReturn ? 'Return' : 'Sale',
             'sub_total' => round((float) $sale->sub_total, 2),
@@ -570,10 +572,17 @@ class ReportService
 
         $itemFilter = $this->resolveItemFilterLabel($ctx);
 
-        return $this->reportPayload(
-            $ctx,
-            $isReturn ? 'Sales Return Details' : 'Sales Details',
-            [
+        // Return report only — trimmed to Date/Sales ID/Customer/Payment/Net
+        // (no Branch, Discount, Sub Total). Sales Details keeps every column.
+        $columns = $isReturn
+            ? [
+                ['key' => 'date', 'label' => 'Date'],
+                ['key' => 'sales_id', 'label' => 'Sales ID'],
+                ['key' => 'customer', 'label' => 'Customer'],
+                ['key' => 'payment_method', 'label' => 'Payment'],
+                ['key' => 'net_amount', 'label' => 'Net'],
+            ]
+            : [
                 ['key' => 'date', 'label' => 'Date'],
                 ['key' => 'sales_id', 'label' => 'Sales ID'],
                 ['key' => 'customer', 'label' => 'Customer'],
@@ -582,7 +591,12 @@ class ReportService
                 ['key' => 'sub_total', 'label' => 'Sub Total'],
                 ['key' => 'discount', 'label' => 'Discount'],
                 ['key' => 'net_amount', 'label' => 'Net'],
-            ],
+            ];
+
+        return $this->reportPayload(
+            $ctx,
+            $isReturn ? 'Sales Return Details' : 'Sales Details',
+            $columns,
             $rows,
             [
                 ['label' => 'Transactions', 'value' => count($rows)],
@@ -639,68 +653,50 @@ class ReportService
     }
 
     /**
-     * Customer Settlement — incoming payments from customers who took a
-     * credit sale and have since fully paid it off (current outstanding
-     * balance is 0). Payments from customers who still owe something, or
-     * that can't be tied to a real customer, are left out. Columns: Customer
-     * Name / Method / Amount Received.
+     * Customer Settlement — every payment applied to a specific bill (see
+     * sale_payment_allocations / the Receive Payment "which bill" picker),
+     * full or partial, with the bill number it was applied to. Previously
+     * gated on the customer's *overall* balance reaching zero, which hid a
+     * payment that fully (or partially) settled one bill while another bill
+     * was still open — bill-level settlement is the point of this report
+     * now, not the customer's total. General payments not tied to any bill
+     * have no bill number to show and are left out. Columns: Customer Name /
+     * Bill No / Method / Amount Received.
      *
      * @param  array<string, mixed>  $ctx
      * @return array<string, mixed>
      */
     private function customerSettlement(array $ctx): array
     {
-        $payments = $this->incomingPaymentsQuery($ctx)
-            ->orderByDesc('payment_date')
-            ->get();
+        $allocations = SalePaymentAllocation::query()
+            ->join('pos_payments', 'sale_payment_allocations.pos_payment_id', '=', 'pos_payments.id')
+            ->join('sales', 'sale_payment_allocations.sale_id', '=', 'sales.id')
+            ->leftJoin('customers', 'sales.customer_id', '=', 'customers.id')
+            ->where('sales.company_id', $ctx['company_id'])
+            ->whereBetween('pos_payments.payment_date', [$ctx['date_from'], $ctx['date_to']])
+            ->orderByDesc('pos_payments.payment_date')
+            ->orderByDesc('sale_payment_allocations.id')
+            ->get([
+                'sale_payment_allocations.amount as allocated_amount',
+                'sales.sales_id as bill_number',
+                'sales.customer_name as customer_name',
+                'pos_payments.payment_method as payment_method',
+                'pos_payments.cheque_number as cheque_number',
+                'pos_payments.bank_name as bank_name',
+                'customers.route as route',
+            ]);
 
-        $saleIds = $payments->where('source_type', PaymentService::SOURCE_SALE)
-            ->pluck('source_id')->filter()->unique();
-        $customerPaymentIds = $payments->where('source_type', PaymentService::SOURCE_CUSTOMER_PAYMENT)
-            ->pluck('source_id')->filter()->unique();
-        $salesNos = $payments->whereNull('source_type')
-            ->pluck('sales_no')->filter()->unique();
-
-        $customerIdBySaleId = Sale::whereIn('id', $saleIds)->pluck('customer_id', 'id');
-        $customerIdBySalesNo = Sale::whereIn('sales_id', $salesNos)->pluck('customer_id', 'sales_id');
-
-        // concat (not merge) — these are keyed by sale id / sales_id / a plain
-        // index, and merge() combines by key, which would silently drop or
-        // overwrite unrelated customer ids whose keys happen to collide.
-        $allCustomerIds = $customerIdBySaleId->filter()->values()
-            ->concat($customerPaymentIds->values())
-            ->concat($customerIdBySalesNo->filter()->values())
-            ->unique();
-
-        $customers = Customer::whereIn('id', $allCustomerIds)
-            ->get(['id', 'customer_name', 'net_balance'])
-            ->keyBy('id');
-
-        $rows = [];
-        foreach ($payments as $p) {
-            /** @var PosPayment $p */
-            $customerId = match (true) {
-                $p->source_type === PaymentService::SOURCE_SALE && $p->source_id
-                    => $customerIdBySaleId[$p->source_id] ?? null,
-                $p->source_type === PaymentService::SOURCE_CUSTOMER_PAYMENT && $p->source_id
-                    => $p->source_id,
-                (bool) $p->sales_no => $customerIdBySalesNo[$p->sales_no] ?? null,
-                default => null,
-            };
-
-            $customer = $customerId ? $customers->get($customerId) : null;
-            // Not tied to a real customer, or that customer still owes
-            // something — not a "fully settled" row, skip it.
-            if (!$customer || abs((float) $customer->net_balance) >= 0.005) {
-                continue;
-            }
-
-            $rows[] = [
-                'customer' => $customer->customer_name,
-                'payment_method' => $p->payment_method,
-                'amount_received' => $this->signedIncomingPaymentAmount($p),
-            ];
-        }
+        $rows = $allocations->map(fn ($a) => [
+            'customer' => $a->customer_name ?: 'Customer',
+            'bill_number' => $a->bill_number,
+            'payment_method' => $a->payment_method,
+            'amount_received' => round((float) $a->allocated_amount, 2),
+            // Not in the on-screen columns below — used by the Excel export
+            // only, which pivots by payment method (see reportTableExcel).
+            'cheque_number' => $a->cheque_number,
+            'bank_name' => $a->bank_name,
+            'route' => $a->route,
+        ])->all();
 
         $totalReceived = round(array_sum(array_column($rows, 'amount_received')), 2);
 
@@ -709,6 +705,7 @@ class ReportService
             'Customer Settlement',
             [
                 ['key' => 'customer', 'label' => 'Customer Name'],
+                ['key' => 'bill_number', 'label' => 'Bill No'],
                 ['key' => 'payment_method', 'label' => 'Method'],
                 ['key' => 'amount_received', 'label' => 'Amount Received'],
             ],
@@ -717,7 +714,7 @@ class ReportService
                 ['label' => 'Receipts', 'value' => count($rows)],
                 ['label' => 'Total Received', 'value' => $totalReceived],
             ],
-            'Only shows payments from customers who took a credit sale and have since fully settled their balance to zero.',
+            'Shows every payment applied to a specific bill, full or partial, with the bill it was applied to. General payments not tied to a bill are not shown here.',
         );
     }
 

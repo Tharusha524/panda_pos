@@ -873,6 +873,9 @@ class SaleService
             'amount_received' => $sale->amount_received !== null ? (float) $sale->amount_received : null,
             'bank_id' => $sale->bank_id,
             'cheque_number' => $sale->cheque_number,
+            // Cheque return (bounced) on a sale-time payment — distinct from
+            // has_return above, which is about a product being returned.
+            'cheque_returned' => (bool) ($sale->cheque_returned ?? false),
             'refund_card_last4' => $sale->refund_card_last4,
             'notes' => $sale->notes,
             'items' => $items->map(fn (SaleItem $line) => [

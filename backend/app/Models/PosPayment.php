@@ -19,6 +19,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string|null $bank_name
  * @property string|null $previous_balance
  * @property string|null $new_balance
+ * @property bool $is_returned
+ * @property Carbon|null $returned_at
  * @property string|null $discount
  * @property string|null $paid_amount
  * @property string|null $notes
@@ -41,6 +43,8 @@ class PosPayment extends Model
         'bank_name',
         'previous_balance',
         'new_balance',
+        'is_returned',
+        'returned_at',
         'discount',
         'paid_amount',
         'notes',
@@ -52,6 +56,8 @@ class PosPayment extends Model
         'paid_amount' => 'decimal:2',
         'previous_balance' => 'decimal:2',
         'new_balance' => 'decimal:2',
+        'is_returned' => 'boolean',
+        'returned_at' => 'datetime',
     ];
 
     public function company(): BelongsTo

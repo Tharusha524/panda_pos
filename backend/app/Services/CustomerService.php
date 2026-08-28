@@ -351,28 +351,36 @@ class CustomerService
             $chequeNumber = trim((string) ($data['cheque_number'] ?? '')) ?: null;
             $bankName = trim((string) ($data['bank_name'] ?? '')) ?: null;
 
-            // Which specific old bill this payment settles — optional. When
-            // given, the payment can't exceed what's still owed on that one
-            // bill specifically (separate from the overall balance check
-            // above), so it can't be used to silently overpay one bill while
-            // under-crediting another.
-            $bill = null;
-            if (!empty($data['sale_id'])) {
-                $bill = Sale::where('company_id', $locked->company_id)
-                    ->where('customer_id', $locked->id)
-                    ->where('id', (int) $data['sale_id'])
-                    ->lockForUpdate()
-                    ->first();
-                if (!$bill) {
-                    throw new Exception('Selected bill was not found for this customer.');
-                }
-                $billAllocated = round((float) SalePaymentAllocation::where('sale_id', $bill->id)->sum('amount'), 2);
-                $billOutstanding = round((float) $bill->net_amount - $billAllocated, 2);
-                if ($payment > $billOutstanding + 0.01) {
-                    throw new Exception(
-                        'Payment cannot exceed this bill\'s outstanding amount of Rs '.number_format($billOutstanding, 2).'.'
-                    );
-                }
+            // Which specific old bill this payment settles — required: every
+            // payment must be tied to a bill now, so it can't be used to
+            // silently overpay one bill while under-crediting another, and
+            // so Customer Settlement (which only shows bill-tied payments)
+            // never misses one.
+            if (empty($data['sale_id'])) {
+                throw new Exception('Select which bill this payment is for.');
+            }
+            $bill = Sale::where('company_id', $locked->company_id)
+                ->where('customer_id', $locked->id)
+                ->where('id', (int) $data['sale_id'])
+                ->lockForUpdate()
+                ->first();
+            if (!$bill) {
+                throw new Exception('Selected bill was not found for this customer.');
+            }
+            // Capped against the *adjusted* outstanding (accounts for older
+            // general payments made before bill selection was required —
+            // see computeOutstandingBills), not the bill's raw remaining
+            // amount, which can overstate what's really still owed on it.
+            $adjustedBill = collect($this->computeOutstandingBills($locked))
+                ->firstWhere('sale_id', $bill->id);
+            $billOutstanding = $adjustedBill ? (float) $adjustedBill['outstanding_amount'] : 0.0;
+            if ($billOutstanding <= 0.005) {
+                throw new Exception('This bill is already fully settled.');
+            }
+            if ($payment > $billOutstanding + 0.01) {
+                throw new Exception(
+                    'Payment cannot exceed this bill\'s outstanding amount of Rs '.number_format($billOutstanding, 2).'.'
+                );
             }
 
             CustomerAdvancePayment::create([
@@ -437,6 +445,14 @@ class CustomerService
     {
         $customer = $this->findForUser($user, $customerId);
 
+        return $this->computeOutstandingBills($customer);
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function computeOutstandingBills(Customer $customer): array
+    {
         $sales = Sale::where('company_id', $customer->company_id)
             ->where('customer_id', $customer->id)
             ->where(function ($q) {
@@ -450,7 +466,12 @@ class CustomerService
 
         $bills = [];
         foreach ($sales as $sale) {
-            $delta = $this->customerBalanceService->balanceDeltaForSale($sale);
+            // A cheque-returned sale is owed regardless of its original
+            // payment method — balanceDeltaForSale only recognizes Credit
+            // sales/exchanges, so it wouldn't otherwise appear as a bill.
+            $delta = $sale->cheque_returned
+                ? round((float) $sale->net_amount, 2)
+                : $this->customerBalanceService->balanceDeltaForSale($sale);
             // <= 0 covers returns and exchange write-offs, both of which
             // reduce what's owed rather than being a bill of their own.
             if ($delta <= 0.005) {
@@ -469,6 +490,29 @@ class CustomerService
                 'paid_amount' => $allocated,
                 'outstanding_amount' => $outstanding,
             ];
+        }
+
+        // Reconcile against the customer's real total: a "General payment"
+        // made before bill selection was required reduces net_balance
+        // without reducing any one bill's allocated amount, so the raw sum
+        // above can overstate what's actually left on each bill. Squeeze
+        // that gap out of the oldest bills first, so the list shown always
+        // adds up to exactly what the customer really owes.
+        $rawTotal = round(array_sum(array_column($bills, 'outstanding_amount')), 2);
+        $trueTotal = round((float) $customer->net_balance, 2);
+        $excess = round($rawTotal - $trueTotal, 2);
+
+        if ($excess > 0.005) {
+            foreach ($bills as &$bill) {
+                if ($excess <= 0.005) {
+                    break;
+                }
+                $apply = min($bill['outstanding_amount'], $excess);
+                $bill['outstanding_amount'] = round($bill['outstanding_amount'] - $apply, 2);
+                $excess = round($excess - $apply, 2);
+            }
+            unset($bill);
+            $bills = array_values(array_filter($bills, fn ($b) => $b['outstanding_amount'] > 0.005));
         }
 
         return $bills;
@@ -514,7 +558,123 @@ class CustomerService
             // reprint falls back to the customer's current balance then.
             'previous_balance' => $p->previous_balance !== null ? (float) $p->previous_balance : null,
             'new_balance' => $p->new_balance !== null ? (float) $p->new_balance : null,
+            'is_returned' => (bool) $p->is_returned,
         ])->all();
+    }
+
+    /**
+     * Cheque return (bounced cheque) — reverses a customer payment: undoes
+     * whichever bill it was allocated to (that bill goes back to being
+     * outstanding, and the payment drops out of the Customer Settlement
+     * report automatically, since both read sale_payment_allocations
+     * directly), adds the amount back to the customer's balance, and flags
+     * the payment so it can't be returned twice.
+     *
+     * @return array<string, mixed>
+     */
+    public function markPaymentReturnedForUser(User $user, int $customerId, int $paymentId): array
+    {
+        $customer = $this->findForUser($user, $customerId);
+
+        return DB::transaction(function () use ($customer, $paymentId) {
+            $locked = Customer::lockForUpdate()->find($customer->id);
+            if (!$locked) {
+                throw new Exception('Customer not found.');
+            }
+
+            $payment = PosPayment::where('company_id', $locked->company_id)
+                ->where('source_type', PaymentService::SOURCE_CUSTOMER_PAYMENT)
+                ->where('source_id', $locked->id)
+                ->where('id', $paymentId)
+                ->lockForUpdate()
+                ->first();
+            if (!$payment) {
+                throw new Exception('Payment not found for this customer.');
+            }
+            if ($payment->is_returned) {
+                throw new Exception('This payment has already been marked as returned.');
+            }
+
+            SalePaymentAllocation::where('pos_payment_id', $payment->id)->delete();
+
+            $previousBalance = round((float) $locked->net_balance, 2);
+            $amount = round((float) $payment->paid_amount, 2);
+            $locked->net_balance = round($previousBalance + $amount, 2);
+            $locked->save();
+
+            $payment->is_returned = true;
+            $payment->returned_at = now();
+            $payment->save();
+
+            return [
+                'customer' => $this->formatCustomer($locked->fresh(), true),
+                'source' => 'payment',
+                'reference' => $payment->sales_no,
+                'cheque_number' => $payment->cheque_number,
+                'bank_name' => $payment->bank_name,
+                'amount_returned' => $amount,
+                'previous_balance' => $previousBalance,
+                'new_balance' => (float) $locked->net_balance,
+            ];
+        });
+    }
+
+    /**
+     * Cheque return for a sale-time payment (as opposed to a Receive
+     * Payment cheque — see markPaymentReturnedForUser above). The sale
+     * itself (items, inventory, totals) is left untouched — only its
+     * payment status flips: the amount is added back to the customer's
+     * balance as credit owed, and it becomes a pickable bill in Receive
+     * Payment (see outstandingBillsForUser, which treats a cheque-returned
+     * sale as owed regardless of its original payment method).
+     *
+     * @return array<string, mixed>
+     */
+    public function markSaleChequeReturnedForUser(User $user, int $customerId, int $saleId): array
+    {
+        $customer = $this->findForUser($user, $customerId);
+
+        return DB::transaction(function () use ($customer, $saleId) {
+            $locked = Customer::lockForUpdate()->find($customer->id);
+            if (!$locked) {
+                throw new Exception('Customer not found.');
+            }
+
+            $sale = Sale::where('company_id', $locked->company_id)
+                ->where('customer_id', $locked->id)
+                ->where('id', $saleId)
+                ->lockForUpdate()
+                ->first();
+            if (!$sale) {
+                throw new Exception('Sale not found for this customer.');
+            }
+            if (strtolower(trim((string) $sale->payment_method)) !== 'cheque') {
+                throw new Exception('Only cheque-paid sales can be marked as returned.');
+            }
+            if ($sale->cheque_returned) {
+                throw new Exception('This cheque has already been marked as returned.');
+            }
+
+            $previousBalance = round((float) $locked->net_balance, 2);
+            $amount = round((float) $sale->net_amount, 2);
+            $locked->net_balance = round($previousBalance + $amount, 2);
+            $locked->save();
+
+            $sale->cheque_returned = true;
+            $sale->cheque_returned_at = now();
+            $sale->save();
+
+            return [
+                'customer' => $this->formatCustomer($locked->fresh(), true),
+                'source' => 'sale',
+                'reference' => $sale->sales_id,
+                'cheque_number' => $sale->cheque_number,
+                'bank_name' => $sale->bank?->name,
+                'amount_returned' => $amount,
+                'previous_balance' => $previousBalance,
+                'new_balance' => (float) $locked->net_balance,
+            ];
+        });
     }
 
     public function deleteForUser(User $user, int $id): void

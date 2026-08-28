@@ -140,7 +140,7 @@ class CustomerController extends Controller
                 'location' => 'nullable|string|max:100',
                 'cheque_number' => 'nullable|string|max:50',
                 'bank_name' => 'nullable|string|max:100',
-                'sale_id' => 'nullable|integer',
+                'sale_id' => 'required|integer',
             ]);
 
             $result = $this->customerService->receivePaymentForUser($request->user(), $id, $validated);
@@ -183,6 +183,42 @@ class CustomerController extends Controller
             return response()->json([
                 'success' => true,
                 'data' => $payments,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 400);
+        }
+    }
+
+    public function returnPayment(Request $request, int $id, int $paymentId)
+    {
+        try {
+            $result = $this->customerService->markPaymentReturnedForUser($request->user(), $id, $paymentId);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Payment marked as returned',
+                'data' => $result,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 400);
+        }
+    }
+
+    public function returnSaleCheque(Request $request, int $id, int $saleId)
+    {
+        try {
+            $result = $this->customerService->markSaleChequeReturnedForUser($request->user(), $id, $saleId);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Cheque marked as returned',
+                'data' => $result,
             ]);
         } catch (\Exception $e) {
             return response()->json([

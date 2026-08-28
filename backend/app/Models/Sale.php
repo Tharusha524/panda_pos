@@ -32,6 +32,8 @@ class Sale extends Model
         'amount_received',
         'bank_id',
         'cheque_number',
+        'cheque_returned',
+        'cheque_returned_at',
         'payment_method',
         'offer_applied',
         'offer_id',
@@ -51,6 +53,8 @@ class Sale extends Model
         'net_amount' => 'decimal:2',
         'amount_received' => 'decimal:2',
         'offer_applied' => 'boolean',
+        'cheque_returned' => 'boolean',
+        'cheque_returned_at' => 'datetime',
     ];
 
     public function company(): BelongsTo
