@@ -426,7 +426,7 @@ class ReportService
         $returnsCount = (clone $base)->where('transaction_type', $returnType)->count();
 
         $sales = (clone $base)
-            ->with(['items' => fn ($q) => $q->orderBy('id'), 'bank', 'customer'])
+            ->with(['items' => fn ($q) => $q->orderBy('id'), 'bank', 'customer', 'paymentSplits'])
             ->orderByDesc('sale_date')
             ->orderByDesc('id')
             ->get()
@@ -495,7 +495,19 @@ class ReportService
             'net_amount' => round((float) $sale->net_amount, 2),
             'payment_method' => $sale->payment_method,
             'cheque_number' => $sale->cheque_number,
-            'bank_name' => $sale->bank?->name,
+            // Prefer the freely-typed bank_name (how sales checkout actually
+            // records it) — bank?->name only applies when a real registered
+            // bank was picked, which most cheque sales never had.
+            'bank_name' => $sale->bank_name ?: $sale->bank?->name,
+            // Present only for a split-payment sale (payment_method
+            // 'Split') — the Excel pivot spreads the row's total across one
+            // column per method listed here instead of a single amount.
+            'payment_splits' => $sale->paymentSplits->map(fn ($s) => [
+                'payment_method' => $s->payment_method,
+                'amount' => round((float) $s->amount, 2),
+                'cheque_number' => $s->cheque_number,
+                'bank_name' => $s->bank_name,
+            ])->values()->all(),
             'items' => $items,
         ];
     }

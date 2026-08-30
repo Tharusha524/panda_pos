@@ -31,6 +31,7 @@ class Sale extends Model
         'net_amount',
         'amount_received',
         'bank_id',
+        'bank_name',
         'cheque_number',
         'cheque_returned',
         'cheque_returned_at',
@@ -80,6 +81,11 @@ class Sale extends Model
     public function paymentAllocations(): HasMany
     {
         return $this->hasMany(SalePaymentAllocation::class);
+    }
+
+    public function paymentSplits(): HasMany
+    {
+        return $this->hasMany(SalePaymentSplit::class);
     }
 
     public function offer(): BelongsTo

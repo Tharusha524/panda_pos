@@ -18,6 +18,20 @@ class CustomerBalanceService
             return 0.0;
         }
 
+        // Split payment (part cash, part cheque, part credit, etc. on one
+        // sale) — only the portion actually marked Credit in the splits is
+        // owed, not the whole sale total.
+        $creditFromSplits = $this->creditAmountFromSplits($sale);
+        if ($creditFromSplits !== null && !OrderTransactionService::isExchange($sale->transaction_type)) {
+            if ($creditFromSplits <= 0.005) {
+                return 0.0;
+            }
+
+            return OrderTransactionService::isSalesReturn($sale->transaction_type)
+                ? -$creditFromSplits
+                : $creditFromSplits;
+        }
+
         if (OrderTransactionService::isExchange($sale->transaction_type)) {
             if (self::isCreditPayment($sale->payment_method)) {
                 // Whole exchange settled via the account — signed net_amount already
@@ -92,10 +106,40 @@ class CustomerBalanceService
             return true;
         }
 
+        $creditFromSplits = $this->creditAmountFromSplits($sale);
+        if ($creditFromSplits !== null && $creditFromSplits > 0.005) {
+            return true;
+        }
+
         // An exchange paid in cash/card can still owe a balance write-off when the
         // returned items came from a credit-sold bill — see balanceDeltaForSale().
         return OrderTransactionService::isExchange($sale->transaction_type)
             && $this->exchangeSourceWasCredit($sale);
+    }
+
+    /**
+     * Null when this sale isn't a split payment at all (payment_method !==
+     * 'Split') — distinct from 0.0, which means it IS split but none of the
+     * split rows were Credit.
+     */
+    private function creditAmountFromSplits(Sale $sale): ?float
+    {
+        if (strtolower(trim((string) $sale->payment_method)) !== 'split') {
+            return null;
+        }
+
+        $splits = $sale->relationLoaded('paymentSplits')
+            ? $sale->paymentSplits
+            : $sale->paymentSplits()->get();
+
+        $credit = 0.0;
+        foreach ($splits as $split) {
+            if (self::isCreditPayment($split->payment_method)) {
+                $credit += (float) $split->amount;
+            }
+        }
+
+        return round($credit, 2);
     }
 
     /**

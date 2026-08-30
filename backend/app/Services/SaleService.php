@@ -7,6 +7,7 @@ use App\Models\Item;
 use App\Models\Offer;
 use App\Models\Sale;
 use App\Models\SaleItem;
+use App\Models\SalePaymentSplit;
 use App\Models\User;
 use Exception;
 use Illuminate\Support\Facades\DB;
@@ -293,8 +294,16 @@ class SaleService
                 throw new Exception('Sales ID already exists.');
             }
 
+            $paymentSplits = $this->resolvePaymentSplits($data, (float) ($payload['net_amount'] ?? 0));
+            if ($paymentSplits !== []) {
+                $payload['payment_method'] = 'Split';
+            }
+
             $sale = Sale::create($payload);
             $this->syncLineItems($sale, $lines);
+            if ($paymentSplits !== []) {
+                $this->syncPaymentSplits($sale, $paymentSplits);
+            }
 
             if (
                 (
@@ -315,12 +324,12 @@ class SaleService
                     (string) $payload['transaction_type'],
                     $allowNegative,
                 );
-                $freshSale = $sale->fresh();
+                $freshSale = $sale->fresh()->load('paymentSplits');
                 $this->paymentService->syncFromSale($freshSale);
                 $this->customerBalanceService->applySaleEffect($freshSale);
             }
 
-            return $this->formatSale($sale->fresh()->load('items'));
+            return $this->formatSale($sale->fresh()->load(['items', 'paymentSplits']));
         });
     }
 
@@ -344,6 +353,12 @@ class SaleService
             $hadStockMovement = $sale->order_status === OrderTransactionService::ORDER_STATUS_COMPLETED;
             $previousTransactionType = (string) $sale->transaction_type;
             $beforeBalanceSnapshot = $sale->replicate();
+            // replicate() has no id, so its own paymentSplits() query would
+            // always come back empty — attach the pre-update rows manually so
+            // reverting this sale's old balance effect (below) sees them.
+            if (strtolower(trim((string) $sale->payment_method)) === 'split') {
+                $beforeBalanceSnapshot->setRelation('paymentSplits', $sale->paymentSplits()->get());
+            }
 
             if (array_key_exists('location', $data)) {
                 $data['location'] = $this->locationService->assertValidForUser($user, $data['location']);
@@ -397,8 +412,21 @@ class SaleService
             $completingHold = ($sale->order_status === OrderTransactionService::ORDER_STATUS_HOLD)
                 && (($payload['order_status'] ?? '') === OrderTransactionService::ORDER_STATUS_COMPLETED);
 
+            // null = payment_splits wasn't part of this update at all, leave
+            // whatever splits already exist untouched; [] means it was
+            // explicitly cleared back to a single-method sale.
+            $paymentSplits = array_key_exists('payment_splits', $data)
+                ? $this->resolvePaymentSplits($data, (float) ($payload['net_amount'] ?? $sale->net_amount))
+                : null;
+            if ($paymentSplits !== null && $paymentSplits !== []) {
+                $payload['payment_method'] = 'Split';
+            }
+
             $sale->update($payload);
             $sale->refresh();
+            if ($paymentSplits !== null) {
+                $this->syncPaymentSplits($sale, $paymentSplits);
+            }
 
             $newLocation = $sale->location;
             $willDeductStock = !$skipStockPayment && (
@@ -445,7 +473,7 @@ class SaleService
             }
 
             if ($willDeductStock) {
-                $freshSale = $sale->fresh();
+                $freshSale = $sale->fresh()->load('paymentSplits');
                 $this->paymentService->syncFromSale($freshSale);
                 $this->customerBalanceService->syncSaleChange($freshSale, $beforeBalanceSnapshot);
             } elseif ($sale->order_status !== OrderTransactionService::ORDER_STATUS_COMPLETED) {
@@ -453,7 +481,7 @@ class SaleService
                 $this->customerBalanceService->revertSaleEffect($beforeBalanceSnapshot);
             }
 
-            return $this->formatSale($sale->fresh()->load('items'));
+            return $this->formatSale($sale->fresh()->load(['items', 'paymentSplits']));
         });
     }
 
@@ -598,6 +626,73 @@ class SaleService
     }
 
     /**
+     * Validates and normalizes a split-payment request — e.g. part cash,
+     * part cheque, part credit for one sale. Returns [] when payment_splits
+     * wasn't a meaningful (non-empty) array, meaning this is an ordinary
+     * single-method sale.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<int, array{payment_method: string, amount: float, cheque_number: ?string, bank_name: ?string}>
+     */
+    private function resolvePaymentSplits(array $data, float $netAmount): array
+    {
+        $raw = $data['payment_splits'] ?? null;
+        if (!is_array($raw) || $raw === []) {
+            return [];
+        }
+
+        $splits = [];
+        $total = 0.0;
+        foreach ($raw as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $method = trim((string) ($row['payment_method'] ?? ''));
+            $amount = round((float) ($row['amount'] ?? 0), 2);
+            if ($method === '' || $amount <= 0) {
+                continue;
+            }
+            if (strtolower($method) === 'split') {
+                throw new Exception('"Split" can\'t be used as one of the split payment methods.');
+            }
+            $splits[] = [
+                'payment_method' => $method,
+                'amount' => $amount,
+                'cheque_number' => isset($row['cheque_number']) ? (trim((string) $row['cheque_number']) ?: null) : null,
+                'bank_name' => isset($row['bank_name']) ? (trim((string) $row['bank_name']) ?: null) : null,
+            ];
+            $total += $amount;
+        }
+
+        if ($splits === []) {
+            return [];
+        }
+        if (count($splits) < 2) {
+            throw new Exception('Add at least two payment methods to split this sale\'s payment, or remove the split entirely.');
+        }
+        $total = round($total, 2);
+        if (abs($total - round($netAmount, 2)) > 0.01) {
+            throw new Exception(
+                'Split payment amounts (Rs '.number_format($total, 2).
+                ') must add up to the sale total (Rs '.number_format($netAmount, 2).').'
+            );
+        }
+
+        return $splits;
+    }
+
+    /**
+     * @param  array<int, array{payment_method: string, amount: float, cheque_number: ?string, bank_name: ?string}>  $splits
+     */
+    private function syncPaymentSplits(Sale $sale, array $splits): void
+    {
+        $sale->paymentSplits()->delete();
+        foreach ($splits as $split) {
+            $sale->paymentSplits()->create($split);
+        }
+    }
+
+    /**
      * @return array<int, array{item_id: ?int, qty: float}>
      */
     private function inventoryLinesFromSale(Sale $sale): array
@@ -669,6 +764,21 @@ class SaleService
             );
         }
 
+        // The sale checkout screen lets the cashier type any bank name
+        // freely — bank_id only fits a real registered bank (numeric FK),
+        // so a non-numeric bank_id is free text and belongs in bank_name
+        // instead (mobile also sends bank_name directly going forward).
+        // Falls back to $existing when the field isn't part of this update,
+        // same as the other optional fields below.
+        $rawBankId = array_key_exists('bank_id', $data) ? $data['bank_id'] : $existing?->bank_id;
+        $bankId = is_numeric($rawBankId) ? (int) $rawBankId : null;
+        $bankName = array_key_exists('bank_name', $data)
+            ? trim((string) ($data['bank_name'] ?? ''))
+            : trim((string) ($existing?->bank_name ?? ''));
+        if ($bankName === '' && $rawBankId !== null && $rawBankId !== '' && !is_numeric($rawBankId)) {
+            $bankName = trim((string) $rawBankId);
+        }
+
         $payload = [
             'transaction_type' => $transactionType,
             'order_status' => $orderStatus,
@@ -702,7 +812,8 @@ class SaleService
             'amount_received' => isset($data['amount_received'])
                 ? round((float) $data['amount_received'], 2)
                 : null,
-            'bank_id' => $data['bank_id'] ?? null,
+            'bank_id' => $bankId,
+            'bank_name' => $bankName ?: null,
             'cheque_number' => $data['cheque_number'] ?? null,
             'notes' => $data['notes'] ?? null,
         ];
@@ -872,12 +983,22 @@ class SaleService
             'payment_method' => $sale->payment_method,
             'amount_received' => $sale->amount_received !== null ? (float) $sale->amount_received : null,
             'bank_id' => $sale->bank_id,
+            'bank_name' => $sale->bank_name,
             'cheque_number' => $sale->cheque_number,
             // Cheque return (bounced) on a sale-time payment — distinct from
             // has_return above, which is about a product being returned.
             'cheque_returned' => (bool) ($sale->cheque_returned ?? false),
             'refund_card_last4' => $sale->refund_card_last4,
             'notes' => $sale->notes,
+            // Present only for a split-payment sale (payment_method
+            // 'Split') — part cash, part cheque, part credit, etc.
+            'payment_splits' => ($sale->relationLoaded('paymentSplits') ? $sale->paymentSplits : $sale->paymentSplits()->get())
+                ->map(fn (SalePaymentSplit $s) => [
+                    'payment_method' => $s->payment_method,
+                    'amount' => (float) $s->amount,
+                    'cheque_number' => $s->cheque_number,
+                    'bank_name' => $s->bank_name,
+                ])->values()->all(),
             'items' => $items->map(fn (SaleItem $line) => [
                 'id' => $line->id,
                 'item_id' => $line->item_id,
