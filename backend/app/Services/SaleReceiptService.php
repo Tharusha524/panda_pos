@@ -105,6 +105,10 @@ class SaleReceiptService
             'net_amount' => (float) $sale['net_amount'],
             'amount_received' => $sale['amount_received'] !== null ? (float) $sale['amount_received'] : null,
             'cheque_number' => $sale['cheque_number'] ?? null,
+            'bank_name' => $sale['bank_name'] ?? null,
+            // Present only for a split-payment sale (payment_method
+            // 'Split') — part cash, part cheque, part credit, etc.
+            'payment_splits' => $sale['payment_splits'] ?? [],
             'lines' => $lines,
             'show_barcode' => (bool) $hardware['show_barcode_on_sales_receipt'],
             'barcode_value' => $hardware['show_barcode_on_sales_receipt'] ? $sale['sales_id'] : null,

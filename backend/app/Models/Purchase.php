@@ -39,6 +39,7 @@ class Purchase extends Model
         'amount',
         'payment_method',
         'bank_id',
+        'bank_name',
         'cheque_number',
         'net_terms',
         'notes',

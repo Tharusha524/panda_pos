@@ -425,13 +425,38 @@ class ReportService
         $returnsAmount = round((float) (clone $base)->where('transaction_type', $returnType)->sum('net_amount'), 2);
         $returnsCount = (clone $base)->where('transaction_type', $returnType)->count();
 
-        $sales = (clone $base)
+        // An Exchange bill's return side never gets its own Sale row (it's a
+        // return_direction slice of a '1004' bill) — add its return amount
+        // into the same totals so Return figures aren't missing it.
+        $exchangeReturnBase = (clone $base)
+            ->where('transaction_type', OrderTransactionService::TRANSACTION_TYPE_EXCHANGE)
+            ->where('return_sub_total', '>', 0);
+        $returnsAmount = round(
+            $returnsAmount + (float) (clone $exchangeReturnBase)->sum('return_sub_total'),
+            2,
+        );
+        $returnsCount += (clone $exchangeReturnBase)->count();
+
+        $saleModels = (clone $base)
             ->with(['items' => fn ($q) => $q->orderBy('id'), 'bank', 'customer', 'paymentSplits'])
             ->orderByDesc('sale_date')
             ->orderByDesc('id')
-            ->get()
-            ->map(fn (Sale $sale) => $this->formatSaleSummaryRow($sale))
-            ->all();
+            ->get();
+
+        $sales = [];
+        foreach ($saleModels as $sale) {
+            $sales[] = $this->formatSaleSummaryRow($sale);
+            // Also emit a synthetic "Return" row for the return-direction
+            // lines of an Exchange bill, so it shows up wherever the app
+            // filters this list down to transaction_label === 'Return'
+            // (e.g. the Return Report Excel export).
+            if (
+                OrderTransactionService::isExchange($sale->transaction_type)
+                && (float) ($sale->return_sub_total ?? 0) > 0.004
+            ) {
+                $sales[] = $this->formatExchangeReturnRow($sale);
+            }
+        }
 
         return array_merge(
             $this->reportPayload(
@@ -513,6 +538,58 @@ class ReportService
     }
 
     /**
+     * Synthetic report row for the return-direction lines of an Exchange
+     * bill ('1004') — same shape as formatSaleSummaryRow but scoped to just
+     * the returned items and the return_sub_total amount, tagged
+     * transaction_label 'Return' so it flows through the same Return-only
+     * filters as a plain Return bill.
+     *
+     * @return array<string, mixed>
+     */
+    private function formatExchangeReturnRow(Sale $sale): array
+    {
+        $created = $sale->created_at?->format('H:i') ?? '00:00';
+        $dateLabel = ($sale->sale_date?->format('d-m-Y') ?? '').' '.$created;
+
+        $items = $sale->items
+            ->filter(fn (SaleItem $item) => ($item->line_direction ?? 'sale') === 'return')
+            ->map(function (SaleItem $item) {
+                $qty = (float) $item->qty;
+                $unitPrice = round((float) $item->unit_price, 2);
+                $lineTotal = round((float) $item->line_total, 2);
+                $netPrice = $qty > 0 ? round($lineTotal / $qty, 2) : $unitPrice;
+
+                return [
+                    'item_number' => $item->item_number,
+                    'description' => $item->description,
+                    'qty' => round($qty, 2),
+                    'unit_price' => $unitPrice,
+                    'discount' => 0,
+                    'net_price' => $netPrice,
+                    'amount' => $lineTotal,
+                ];
+            })->values()->all();
+
+        return [
+            'id' => $sale->id,
+            'date' => trim($dateLabel),
+            'sales_id' => $sale->sales_id,
+            'customer' => $sale->customer_name ?? 'Walk-in',
+            'route' => $sale->customer?->route,
+            'location' => $sale->location,
+            'transaction_label' => 'Return',
+            'sub_total' => round((float) $sale->return_sub_total, 2),
+            'discount' => 0.0,
+            'net_amount' => round((float) $sale->return_sub_total, 2),
+            'payment_method' => 'Exchange',
+            'cheque_number' => null,
+            'bank_name' => null,
+            'payment_splits' => [],
+            'items' => $items,
+        ];
+    }
+
+    /**
      * @param  array<string, mixed>  $ctx
      * @return array<string, mixed>
      */
@@ -535,6 +612,39 @@ class ReportService
             ])
             ->all();
 
+        // An Exchange bill's return side has no Return-type row of its own —
+        // fold its return_sub_total into the same date buckets so it's not
+        // missing from this summary.
+        $exchangeBase = $this->completedSalesQuery($ctx)
+            ->where('transaction_type', OrderTransactionService::TRANSACTION_TYPE_EXCHANGE)
+            ->where('return_sub_total', '>', 0);
+        $exchangeTotal = round((float) (clone $exchangeBase)->sum('return_sub_total'), 2);
+        $exchangeCount = (clone $exchangeBase)->count();
+
+        $exchangeRows = (clone $exchangeBase)
+            ->select(DB::raw('DATE(sale_date) as period'), DB::raw('SUM(return_sub_total) as amount'), DB::raw('COUNT(*) as cnt'))
+            ->groupBy(DB::raw('DATE(sale_date)'))
+            ->orderBy('period')
+            ->get()
+            ->map(fn ($r) => [
+                'period' => $r->period,
+                'amount' => round((float) $r->amount, 2),
+                'count' => (int) $r->cnt,
+            ])
+            ->all();
+
+        $merged = [];
+        foreach (array_merge($rows, $exchangeRows) as $row) {
+            $period = $row['period'];
+            if (!isset($merged[$period])) {
+                $merged[$period] = ['period' => $period, 'amount' => 0.0, 'count' => 0];
+            }
+            $merged[$period]['amount'] = round($merged[$period]['amount'] + $row['amount'], 2);
+            $merged[$period]['count'] += $row['count'];
+        }
+        ksort($merged);
+        $rows = array_values($merged);
+
         return $this->reportPayload(
             $ctx,
             'Sales Return Summary',
@@ -545,8 +655,8 @@ class ReportService
             ],
             $rows,
             [
-                ['label' => 'Total Returns', 'value' => $total],
-                ['label' => 'Return Transactions', 'value' => $count],
+                ['label' => 'Total Returns', 'value' => round($total + $exchangeTotal, 2)],
+                ['label' => 'Return Transactions', 'value' => $count + $exchangeCount],
             ],
         );
     }
@@ -581,6 +691,39 @@ class ReportService
             'discount' => round((float) $s->discount, 2),
             'net_amount' => round((float) $s->net_amount, 2),
         ])->all();
+
+        // Return report only — an Exchange bill's return side never gets its
+        // own Return-type row (it's a return_direction slice of a '1004'
+        // bill), so fold those in here too or they'd never show up at all.
+        if ($isReturn) {
+            $exchangeRows = $this->completedSalesQuery($ctx)
+                ->where('transaction_type', OrderTransactionService::TRANSACTION_TYPE_EXCHANGE)
+                ->where('return_sub_total', '>', 0)
+                ->when(
+                    !empty($ctx['item_id']),
+                    fn (Builder $q) => $q->whereHas(
+                        'items',
+                        fn (Builder $si) => $si->where('item_id', $ctx['item_id'])
+                            ->where('line_direction', 'return'),
+                    ),
+                )
+                ->orderByDesc('sale_date')
+                ->orderByDesc('id')
+                ->get()
+                ->map(fn (Sale $s) => [
+                    'date' => $s->sale_date?->format('Y-m-d'),
+                    'sales_id' => $s->sales_id,
+                    'customer' => $s->customer_name ?? 'Walk-in',
+                    'location' => $s->location,
+                    'payment_method' => 'Exchange',
+                    'sub_total' => round((float) $s->return_sub_total, 2),
+                    'discount' => 0.0,
+                    'net_amount' => round((float) $s->return_sub_total, 2),
+                ])->all();
+
+            $rows = array_merge($rows, $exchangeRows);
+            usort($rows, fn ($a, $b) => strcmp($b['date'] ?? '', $a['date'] ?? ''));
+        }
 
         $itemFilter = $this->resolveItemFilterLabel($ctx);
 
@@ -1338,7 +1481,17 @@ class ReportService
                 $sub->whereNull('order_status')
                     ->orWhere('order_status', OrderTransactionService::ORDER_STATUS_COMPLETED);
             })
-            ->whereRaw('LOWER(TRIM(payment_method)) = ?', ['credit'])
+            ->where(function ($sub) {
+                // Plain Credit sale, or a split-payment sale (payment_method
+                // 'Split') with a Credit portion — a split sale's own
+                // payment_method never reads 'credit', so it was invisible
+                // here before even though it genuinely adds to what's owed.
+                $sub->whereRaw('LOWER(TRIM(payment_method)) = ?', ['credit'])
+                    ->orWhereHas(
+                        'paymentSplits',
+                        fn ($sq) => $sq->whereRaw('LOWER(TRIM(payment_method)) = ?', ['credit']),
+                    );
+            })
             ->whereNotNull('customer_id')
             ->pluck('customer_id')
             ->unique();

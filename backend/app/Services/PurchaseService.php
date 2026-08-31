@@ -401,6 +401,20 @@ class PurchaseService
             );
         }
 
+        // The purchase screen lets the buyer type any bank name freely —
+        // bank_id only fits a real registered bank (numeric FK), so a
+        // non-numeric bank_id is free text and belongs in bank_name instead
+        // (mirrors the sales checkout bank_name fix). Falls back to
+        // $existing when the field isn't part of this update.
+        $rawBankId = array_key_exists('bank_id', $data) ? $data['bank_id'] : $existing?->bank_id;
+        $bankId = is_numeric($rawBankId) ? (int) $rawBankId : null;
+        $bankName = array_key_exists('bank_name', $data)
+            ? trim((string) ($data['bank_name'] ?? ''))
+            : trim((string) ($existing?->bank_name ?? ''));
+        if ($bankName === '' && $rawBankId !== null && $rawBankId !== '' && !is_numeric($rawBankId)) {
+            $bankName = trim((string) $rawBankId);
+        }
+
         $payload = [
             'purchase_type' => $purchaseType,
             'location' => trim((string) ($data['location'] ?? 'Main Location')) ?: 'Main Location',
@@ -414,7 +428,8 @@ class PurchaseService
             'discount' => $discount,
             'amount' => $amount,
             'payment_method' => $this->normalizePaymentMethod($data['payment_method'] ?? $existing?->payment_method ?? 'Cash'),
-            'bank_id' => $data['bank_id'] ?? $existing?->bank_id ?? null,
+            'bank_id' => $bankId,
+            'bank_name' => $bankName ?: null,
             'cheque_number' => $data['cheque_number'] ?? $existing?->cheque_number ?? null,
             'net_terms' => $data['net_terms'] ?? null,
             'notes' => $data['notes'] ?? null,
@@ -534,6 +549,7 @@ class PurchaseService
             'amount' => (float) $purchase->amount,
             'payment_method' => $purchase->payment_method ?? 'Cash',
             'bank_id' => $purchase->bank_id,
+            'bank_name' => $purchase->bank_name,
             'cheque_number' => $purchase->cheque_number,
             'net_terms' => $purchase->net_terms,
             'notes' => $purchase->notes,

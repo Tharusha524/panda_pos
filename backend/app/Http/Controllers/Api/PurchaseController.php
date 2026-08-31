@@ -168,6 +168,10 @@ class PurchaseController extends Controller
                 'integer',
                 Rule::exists('banks', 'id')->where(fn ($query) => $query->where('company_id', $companyId)),
             ],
+            // Freely-typed bank name (the mobile purchase screen's bank
+            // field isn't a picker over real registered banks) — same fix
+            // as the sales checkout bank_name bug.
+            'bank_name' => 'nullable|string|max:100',
             'cheque_number' => 'nullable|string|max:50',
             'notes' => 'nullable|string',
             'items' => 'nullable|array',

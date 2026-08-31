@@ -286,7 +286,20 @@ class SaleController extends Controller
                 'integer',
                 Rule::exists('banks', 'id')->where(fn ($query) => $query->where('company_id', $companyId)),
             ],
+            // Freely-typed bank name (the mobile checkout screen's bank
+            // field isn't a picker over real registered banks) — was
+            // missing here entirely, so $request->validate() silently
+            // stripped it before it ever reached SaleService.
+            'bank_name' => 'nullable|string|max:100',
             'cheque_number' => 'nullable|string|max:50',
+            // Split payment — part cash, part cheque, part credit, etc. on
+            // one sale. Validated for shape only; SaleService::
+            // resolvePaymentSplits enforces the amounts sum to the total.
+            'payment_splits' => 'nullable|array',
+            'payment_splits.*.payment_method' => 'required_with:payment_splits|string|max:50',
+            'payment_splits.*.amount' => 'required_with:payment_splits|numeric|min:0.01',
+            'payment_splits.*.cheque_number' => 'nullable|string|max:50',
+            'payment_splits.*.bank_name' => 'nullable|string|max:100',
             'offer_applied' => 'nullable|boolean',
             'offer_id' => 'nullable|integer|exists:offers,id',
             'offer_promo_code' => 'nullable|string|max:50',
