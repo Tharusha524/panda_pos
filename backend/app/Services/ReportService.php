@@ -443,9 +443,52 @@ class ReportService
             ->orderByDesc('id')
             ->get();
 
+        // Every Return-type bill linked back to one of these sales — used
+        // below both for the total returned amount (drops a fully-returned
+        // bill from the Sales Report Excel) and, per item, so a partial
+        // return can reduce just the returned items' qty/amount instead of
+        // showing the sale's full original quantities.
+        $returnSalesBySource = Sale::where('company_id', $ctx['company_id'])
+            ->where('transaction_type', $returnType)
+            ->whereIn('returned_from_sale_id', $saleModels->pluck('id'))
+            ->with('items')
+            ->get()
+            ->groupBy('returned_from_sale_id');
+
+        $returnedAmounts = [];
+        $returnedItemsBySale = [];
+        foreach ($returnSalesBySource as $sourceId => $returnSales) {
+            $returnedAmounts[$sourceId] = round((float) $returnSales->sum('net_amount'), 2);
+
+            $itemMap = [];
+            foreach ($returnSales as $returnSale) {
+                foreach ($returnSale->items as $item) {
+                    $key = trim((string) ($item->item_number ?: $item->description));
+                    if ($key === '') {
+                        continue;
+                    }
+                    if (!isset($itemMap[$key])) {
+                        $itemMap[$key] = [
+                            'item_number' => $item->item_number,
+                            'description' => $item->description,
+                            'qty' => 0.0,
+                            'amount' => 0.0,
+                        ];
+                    }
+                    $itemMap[$key]['qty'] += (float) $item->qty;
+                    $itemMap[$key]['amount'] += (float) $item->line_total;
+                }
+            }
+            $returnedItemsBySale[$sourceId] = array_values($itemMap);
+        }
+
         $sales = [];
         foreach ($saleModels as $sale) {
-            $sales[] = $this->formatSaleSummaryRow($sale);
+            $sales[] = $this->formatSaleSummaryRow(
+                $sale,
+                round((float) ($returnedAmounts[$sale->id] ?? 0), 2),
+                $returnedItemsBySale[$sale->id] ?? [],
+            );
             // Also emit a synthetic "Return" row for the return-direction
             // lines of an Exchange bill, so it shows up wherever the app
             // filters this list down to transaction_label === 'Return'
@@ -482,7 +525,7 @@ class ReportService
     /**
      * @return array<string, mixed>
      */
-    private function formatSaleSummaryRow(Sale $sale): array
+    private function formatSaleSummaryRow(Sale $sale, float $returnedAmount = 0.0, array $returnedItems = []): array
     {
         $isReturn = OrderTransactionService::isSalesReturn($sale->transaction_type);
         $created = $sale->created_at?->format('H:i') ?? '00:00';
@@ -518,6 +561,14 @@ class ReportService
             'sub_total' => round((float) $sale->sub_total, 2),
             'discount' => round((float) $sale->discount, 2),
             'net_amount' => round((float) $sale->net_amount, 2),
+            // Sale-type rows only — how much of this bill has since been
+            // returned (regardless of when). Lets the Sales Report Excel
+            // drop a fully-returned bill, same as the on-screen report.
+            'returned_amount' => $isReturn ? 0.0 : $returnedAmount,
+            // Sale-type rows only — per-item qty/amount returned, so a
+            // partial return can reduce just those items in the Sales
+            // Report Excel instead of showing the full original quantities.
+            'returned_items' => $isReturn ? [] : $returnedItems,
             'payment_method' => $sale->payment_method,
             'cheque_number' => $sale->cheque_number,
             // Prefer the freely-typed bank_name (how sales checkout actually
@@ -681,16 +732,50 @@ class ReportService
             ->orderByDesc('id')
             ->get();
 
-        $rows = $sales->map(fn (Sale $s) => [
-            'date' => $s->sale_date?->format('Y-m-d'),
-            'sales_id' => $s->sales_id,
-            'customer' => $s->customer_name ?? 'Walk-in',
-            'location' => $s->location,
-            'payment_method' => $s->payment_method,
-            'sub_total' => round((float) $s->sub_total, 2),
-            'discount' => round((float) $s->discount, 2),
-            'net_amount' => round((float) $s->net_amount, 2),
-        ])->all();
+        if ($isReturn) {
+            $rows = $sales->map(fn (Sale $s) => [
+                'date' => $s->sale_date?->format('Y-m-d'),
+                'sales_id' => $s->sales_id,
+                'customer' => $s->customer_name ?? 'Walk-in',
+                'location' => $s->location,
+                'payment_method' => $s->payment_method,
+                'sub_total' => round((float) $s->sub_total, 2),
+                'discount' => round((float) $s->discount, 2),
+                'net_amount' => round((float) $s->net_amount, 2),
+            ])->all();
+        } else {
+            // Sales report only — a sale that was later returned (in full or
+            // in part, regardless of when the return happened) has its
+            // returned amount deducted from what's shown here. Fully
+            // returned bills drop out of the list entirely instead of
+            // showing as 0, so the report reads as "what actually stuck"
+            // without needing a separate Net Sales figure.
+            $returnedAmounts = Sale::where('company_id', $ctx['company_id'])
+                ->where('transaction_type', OrderTransactionService::TRANSACTION_TYPE_RETURN)
+                ->whereIn('returned_from_sale_id', $sales->pluck('id'))
+                ->select('returned_from_sale_id', DB::raw('SUM(net_amount) as total'))
+                ->groupBy('returned_from_sale_id')
+                ->pluck('total', 'returned_from_sale_id');
+
+            $rows = [];
+            foreach ($sales as $s) {
+                $returned = round((float) ($returnedAmounts[$s->id] ?? 0), 2);
+                $netAfterReturn = round((float) $s->net_amount - $returned, 2);
+                if ($netAfterReturn <= 0.005) {
+                    continue;
+                }
+                $rows[] = [
+                    'date' => $s->sale_date?->format('Y-m-d'),
+                    'sales_id' => $s->sales_id,
+                    'customer' => $s->customer_name ?? 'Walk-in',
+                    'location' => $s->location,
+                    'payment_method' => $s->payment_method,
+                    'sub_total' => round((float) $s->sub_total, 2),
+                    'discount' => round((float) $s->discount, 2),
+                    'net_amount' => $netAfterReturn,
+                ];
+            }
+        }
 
         // Return report only — an Exchange bill's return side never gets its
         // own Return-type row (it's a return_direction slice of a '1004'
@@ -1471,10 +1556,12 @@ class ReportService
      */
     private function customerOutstanding(array $ctx): array
     {
-        // Scopes the customer list to who was given credit within the picked
-        // date range — the amount shown is still their current outstanding
-        // balance (not a historical balance as of that date), since a credit
-        // sale's balance carries forward until it's settled.
+        // Every customer who was given credit within the picked date range —
+        // regardless of whether they've since paid it off (net_balance may
+        // now read 0 for a fully-settled one). This is a "who bought on
+        // credit this month" list, not an "who currently owes" list; the
+        // amount shown is still their current outstanding balance (not a
+        // historical balance as of the sale date).
         $creditCustomerIds = Sale::where('company_id', $ctx['company_id'])
             ->whereBetween('sale_date', [$ctx['date_from'], $ctx['date_to']])
             ->where(function ($sub) {
@@ -1497,7 +1584,6 @@ class ReportService
             ->unique();
 
         $q = Customer::where('company_id', $ctx['company_id'])
-            ->where('net_balance', '>', 0)
             ->whereIn('id', $creditCustomerIds);
         $this->applyCustomerLocationFilter($q, $ctx);
 
@@ -1818,25 +1904,58 @@ class ReportService
      */
     private function cashInHand(array $ctx): array
     {
-        $cashSales = round((float) $this->completedSalesQuery($ctx)
+        $cashSalesPlain = round((float) $this->completedSalesQuery($ctx)
             ->where('transaction_type', OrderTransactionService::TRANSACTION_TYPE_SALE)
             ->where('payment_method', 'like', '%cash%')
             ->sum('net_amount'), 2);
+        // A split-payment sale's own payment_method reads 'Split', not
+        // 'cash', so its Cash portion was invisible to the plain-method sum
+        // above — fold it in separately here.
+        $cashSalesSplit = round(
+            (float) $this->completedSalesQuery($ctx)
+                ->where('transaction_type', OrderTransactionService::TRANSACTION_TYPE_SALE)
+                ->whereHas(
+                    'paymentSplits',
+                    fn ($q) => $q->whereRaw('LOWER(TRIM(payment_method)) = ?', ['cash']),
+                )
+                ->with('paymentSplits')
+                ->get()
+                ->sum(fn (Sale $s) => $s->paymentSplits
+                    ->filter(fn ($sp) => strtolower(trim((string) $sp->payment_method)) === 'cash')
+                    ->sum('amount')),
+            2,
+        );
+        // Gross — deliberately not netted against returns here (see the
+        // separate "Cash Refunds" line below instead, so the two don't
+        // double-subtract the same amount).
+        $cashSales = round($cashSalesPlain + $cashSalesSplit, 2);
+
         $cashExpenses = round((float) Expense::where('company_id', $ctx['company_id'])
             ->whereBetween('expense_date', [$ctx['date_from'], $ctx['date_to']])
             ->when($ctx['branch_name'], fn ($q) => $q->where('location', $ctx['branch_name']))
             ->where('payment_method', 'like', '%cash%')
             ->sum('amount'), 2);
+        // Excludes the sale-return refund branch of outgoingPaymentsQuery()
+        // (source_type 'sale') — that's a customer refund, not a purchase or
+        // supplier payment, and gets its own line below instead.
         $cashPaidOut = round((float) $this->outgoingPaymentsQuery($ctx)
             ->where('payment_method', 'like', '%cash%')
+            ->where('source_type', '!=', PaymentService::SOURCE_SALE)
             ->sum('paid_amount'), 2);
         $cashPurchaseReturns = round((float) $this->incomingPaymentsQuery($ctx)
             ->where('source_type', PaymentService::SOURCE_PURCHASE)
             ->whereRaw('LOWER(COALESCE(receipt_type, "")) = ?', ['return'])
             ->where('payment_method', 'like', '%cash%')
             ->sum('paid_amount'), 2);
+        // Cash actually refunded to customers on a Sales Return — kept
+        // separate from Cash Sales (which stays gross) and from Purchase
+        // Returns above (a completely different direction of money).
+        $cashRefunds = round((float) $this->completedSalesQuery($ctx)
+            ->where('transaction_type', OrderTransactionService::TRANSACTION_TYPE_RETURN)
+            ->where('payment_method', 'like', '%cash%')
+            ->sum('net_amount'), 2);
 
-        $net = round($cashSales - $cashExpenses - $cashPaidOut + $cashPurchaseReturns, 2);
+        $net = round($cashSales - $cashExpenses - $cashPaidOut + $cashPurchaseReturns - $cashRefunds, 2);
 
         return $this->reportPayload(
             $ctx,
@@ -1847,13 +1966,14 @@ class ReportService
             ],
             [
                 ['item' => 'Cash Sales (Income)', 'amount' => $cashSales],
+                ['item' => 'Cash Refunds (Sales Returns)', 'amount' => -$cashRefunds],
                 ['item' => 'Cash Expenses', 'amount' => -$cashExpenses],
                 ['item' => 'Cash Paid Out (Purchase/Supplier)', 'amount' => -$cashPaidOut],
                 ['item' => 'Cash Purchase Returns (Refund In)', 'amount' => $cashPurchaseReturns],
                 ['item' => 'Estimated Cash in Hand', 'amount' => $net],
             ],
             [['label' => 'Net Cash Position', 'value' => $net]],
-            'Customer sale payments are included in Cash Sales (income), not subtracted as payouts.',
+            'Cash Sales includes the Cash portion of split-payment sales, and is shown gross — a returned sale\'s cash is deducted separately under Cash Refunds, not from Cash Sales itself. Customer sale payments are included in Cash Sales (income), not subtracted as payouts.',
         );
     }
 

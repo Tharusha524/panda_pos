@@ -50,6 +50,7 @@ class PosDashboardService
         $todayRetailQuery = $this->retailSalesQuery($companyId)->whereDate('sale_date', $today);
         $todayReturnsQuery = $this->returnSalesQuery($companyId)->whereDate('sale_date', $today);
         $monthRetailQuery = $this->retailSalesQuery($companyId)->whereDate('sale_date', '>=', $monthStart);
+        $monthReturnsQuery = $this->returnSalesQuery($companyId)->whereDate('sale_date', '>=', $monthStart);
 
         $todaySalesAmount = round((float) $todayRetailQuery->sum('net_amount'), 2);
         $todayReturnsAmount = round((float) $todayReturnsQuery->sum('net_amount'), 2);
@@ -57,6 +58,8 @@ class PosDashboardService
         $todaySalesCount = $todayRetailQuery->count();
         $todayReturnsCount = $todayReturnsQuery->count();
         $monthSalesAmount = round((float) $monthRetailQuery->sum('net_amount'), 2);
+        $monthReturnsAmount = round((float) $monthReturnsQuery->sum('net_amount'), 2);
+        $monthNetSalesAmount = round($monthSalesAmount - $monthReturnsAmount, 2);
 
         $todayPurchasesQuery = Purchase::where('company_id', $companyId)->whereDate('purchase_date', $today);
         $todayPurchasesAmount = round((float) $todayPurchasesQuery->sum('amount'), 2);
@@ -96,6 +99,7 @@ class PosDashboardService
                 'today_returns_count' => $todayReturnsCount,
                 'today_net_sales_amount' => $todayNetSalesAmount,
                 'month_sales_amount' => $monthSalesAmount,
+                'month_net_sales_amount' => $monthNetSalesAmount,
                 'today_purchases_amount' => $todayPurchasesAmount,
                 'today_purchases_count' => $todayPurchasesCount,
                 'today_expenses_amount' => $todayExpensesAmount,
