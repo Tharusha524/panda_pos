@@ -24,7 +24,7 @@ class SaleReceiptService
         $company = $this->companySettingService->getCompanyForUser($user);
         $sale = Sale::where('company_id', $company->id)
             ->where('id', $saleId)
-            ->with('items')
+            ->with(['items', 'customer'])
             ->first();
 
         if (!$sale) {
@@ -92,9 +92,12 @@ class SaleReceiptService
             'sale_date' => $sale['sale_date'],
             'location' => $sale['location'],
             'payment_method' => $sale['payment_method'],
-            'customer_name' => $hardware['allow_customer_details_on_sales_receipt']
-                ? ($sale['customer_name'] ?? null)
-                : null,
+            // Always shown — no hardware toggle for this; reprint and
+            // fresh-checkout receipts both show the same customer details.
+            'customer_name' => $sale['customer_name'] ?? null,
+            'customer_code' => $sale['customer_code'] ?? null,
+            'customer_contact_no' => $sale['customer_contact_no'] ?? null,
+            'customer_route' => $sale['customer_route'] ?? null,
             'sub_total' => (float) $sale['sub_total'],
             'return_sub_total' => (float) ($sale['return_sub_total'] ?? 0),
             'discount' => $hardware['allow_discount_on_sales_receipt']
@@ -277,6 +280,9 @@ class SaleReceiptService
             'sale_date' => $sale->sale_date->format('Y-m-d'),
             'location' => $sale->location,
             'customer_name' => $sale->customer_name,
+            'customer_code' => $sale->customer?->customer_code,
+            'customer_contact_no' => $sale->customer?->contact_no,
+            'customer_route' => $sale->customer?->route,
             'payment_method' => $sale->payment_method,
             'sub_total' => (float) $sale->sub_total,
             'return_sub_total' => (float) ($sale->return_sub_total ?? 0),

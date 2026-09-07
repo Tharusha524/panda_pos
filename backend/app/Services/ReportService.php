@@ -734,6 +734,9 @@ class ReportService
 
         if ($isReturn) {
             $rows = $sales->map(fn (Sale $s) => [
+                // Not shown as a column — lets the mobile app tap a row and
+                // open that transaction's real receipt.
+                'id' => $s->id,
                 'date' => $s->sale_date?->format('Y-m-d'),
                 'sales_id' => $s->sales_id,
                 'customer' => $s->customer_name ?? 'Walk-in',
@@ -765,6 +768,9 @@ class ReportService
                     continue;
                 }
                 $rows[] = [
+                    // Not shown as a column — lets the mobile app tap a row
+                    // and open that transaction's real receipt.
+                    'id' => $s->id,
                     'date' => $s->sale_date?->format('Y-m-d'),
                     'sales_id' => $s->sales_id,
                     'customer' => $s->customer_name ?? 'Walk-in',
@@ -796,6 +802,7 @@ class ReportService
                 ->orderByDesc('id')
                 ->get()
                 ->map(fn (Sale $s) => [
+                    'id' => $s->id,
                     'date' => $s->sale_date?->format('Y-m-d'),
                     'sales_id' => $s->sales_id,
                     'customer' => $s->customer_name ?? 'Walk-in',
@@ -1935,12 +1942,15 @@ class ReportService
             ->when($ctx['branch_name'], fn ($q) => $q->where('location', $ctx['branch_name']))
             ->where('payment_method', 'like', '%cash%')
             ->sum('amount'), 2);
-        // Excludes the sale-return refund branch of outgoingPaymentsQuery()
-        // (source_type 'sale') — that's a customer refund, not a purchase or
-        // supplier payment, and gets its own line below instead.
+        // Restricted to actual Purchase/Supplier payments only —
+        // outgoingPaymentsQuery() is a broad "all outgoing cash" helper that
+        // also matches Expense and Salary payments (already counted above
+        // as Cash Expenses — including them here would double-subtract the
+        // same money) and the sale-return refund branch (a customer refund,
+        // not a purchase or supplier payment, with its own line below).
         $cashPaidOut = round((float) $this->outgoingPaymentsQuery($ctx)
             ->where('payment_method', 'like', '%cash%')
-            ->where('source_type', '!=', PaymentService::SOURCE_SALE)
+            ->where('source_type', PaymentService::SOURCE_PURCHASE)
             ->sum('paid_amount'), 2);
         $cashPurchaseReturns = round((float) $this->incomingPaymentsQuery($ctx)
             ->where('source_type', PaymentService::SOURCE_PURCHASE)
