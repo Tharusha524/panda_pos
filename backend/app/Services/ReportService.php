@@ -109,6 +109,7 @@ class ReportService
             'expiry-items' => $this->expiryItems($ctx),
             'item-list' => $this->itemList($ctx),
             'inventory-in-out' => $this->inventoryInOut($ctx),
+            'branch-day-end' => $this->branchDayEnd($ctx),
             'write-off-summary', 'write-off-details' => $this->unavailableReport($ctx, 'Write-off tracking is not configured yet.'),
             'inventory-summary' => $this->inventorySummary($ctx),
             'og-tog-details' => $this->unavailableReport($ctx, 'OG/TOG details are not configured yet.'),
@@ -151,7 +152,7 @@ class ReportService
             'sales-summary', 'sales-details', 'sales-return-summary', 'sales-return-details',
             'customer-payment', 'customer-settlement', 'sales-by-category', 'customer-net-sales',
             'expense-summary',
-            'reorder-items', 'expiry-items', 'item-list', 'inventory-in-out',
+            'reorder-items', 'expiry-items', 'item-list', 'inventory-in-out', 'branch-day-end',
             'write-off-summary', 'write-off-details', 'inventory-summary', 'og-tog-details',
             'inventory-adjustment', 'inventory-category', 'repair-item-summary',
             'non-moving-items', 'deleted-inventory-summary',
@@ -1351,6 +1352,128 @@ class ReportService
             $rows,
             [],
             'Stock in from purchases and sales returns; stock out from sales.',
+        );
+    }
+
+    /**
+     * Branch/lorry day-end stock — opening qty, stock transferred in/out,
+     * sold, returned, and closing qty per item at one location. Requires a
+     * specific branch (no "All branches"): a lorry's day-end only makes
+     * sense for its own stock, not everything combined.
+     *
+     * Closing qty is read straight off the item's current stock at this
+     * location. Opening qty is back-calculated from that closing qty minus
+     * the period's own movements (opening = closing - in + out + sold -
+     * returned), so it's only exact when the date range runs up through
+     * today — a past-dated range doesn't account for movements after it.
+     *
+     * @param  array<string, mixed>  $ctx
+     * @return array<string, mixed>
+     */
+    private function branchDayEnd(array $ctx): array
+    {
+        if (empty($ctx['branch_name'])) {
+            throw new Exception('Select a branch (e.g. a lorry) to view its day-end stock.');
+        }
+
+        $location = $ctx['branch_name'];
+
+        $transfersIn = DB::table('stock_transfer_items')
+            ->join('stock_transfers', 'stock_transfer_items.stock_transfer_id', '=', 'stock_transfers.id')
+            ->where('stock_transfers.company_id', $ctx['company_id'])
+            ->where('stock_transfers.to_location', $location)
+            ->whereBetween('stock_transfers.transfer_date', [$ctx['date_from'], $ctx['date_to']])
+            ->select('stock_transfer_items.item_number', DB::raw('SUM(stock_transfer_items.qty) as qty'))
+            ->groupBy('stock_transfer_items.item_number')
+            ->get()
+            ->keyBy('item_number');
+
+        $transfersOut = DB::table('stock_transfer_items')
+            ->join('stock_transfers', 'stock_transfer_items.stock_transfer_id', '=', 'stock_transfers.id')
+            ->where('stock_transfers.company_id', $ctx['company_id'])
+            ->where('stock_transfers.from_location', $location)
+            ->whereBetween('stock_transfers.transfer_date', [$ctx['date_from'], $ctx['date_to']])
+            ->select('stock_transfer_items.item_number', DB::raw('SUM(stock_transfer_items.qty) as qty'))
+            ->groupBy('stock_transfer_items.item_number')
+            ->get()
+            ->keyBy('item_number');
+
+        $saleIds = $this->completedSalesQuery($ctx)->pluck('id');
+
+        $sold = SaleItem::whereIn('sale_id', $saleIds)
+            ->where(function ($q) {
+                $q->whereNull('line_direction')->orWhere('line_direction', 'sale');
+            })
+            ->select('item_number', 'description', DB::raw('SUM(qty) as qty'))
+            ->groupBy('item_number', 'description')
+            ->get()
+            ->keyBy('item_number');
+
+        $returned = SaleItem::whereIn('sale_id', $saleIds)
+            ->where('line_direction', 'return')
+            ->select('item_number', DB::raw('SUM(qty) as qty'))
+            ->groupBy('item_number')
+            ->get()
+            ->keyBy('item_number');
+
+        $currentItems = Item::where('company_id', $ctx['company_id'])
+            ->where('location', $location)
+            ->get(['item_number', 'description', 'qty'])
+            ->keyBy('item_number');
+
+        $numbers = collect($transfersIn->keys())
+            ->merge($transfersOut->keys())
+            ->merge($sold->keys())
+            ->merge($returned->keys())
+            ->merge($currentItems->keys())
+            ->unique();
+
+        $rows = $numbers->map(function ($num) use ($transfersIn, $transfersOut, $sold, $returned, $currentItems) {
+            $in = round((float) ($transfersIn->get($num)->qty ?? 0), 2);
+            $out = round((float) ($transfersOut->get($num)->qty ?? 0), 2);
+            $soldQty = round((float) ($sold->get($num)->qty ?? 0), 2);
+            $returnedQty = round((float) ($returned->get($num)->qty ?? 0), 2);
+            $closing = round((float) ($currentItems->get($num)->qty ?? 0), 2);
+            $opening = round($closing - $in + $out + $soldQty - $returnedQty, 2);
+
+            return [
+                'item_number' => $num,
+                'description' => $currentItems->get($num)->description ?? $sold->get($num)->description ?? '',
+                'opening_qty' => $opening,
+                'transferred_in' => $in,
+                'transferred_out' => $out,
+                'sold_qty' => $soldQty,
+                'returned_qty' => $returnedQty,
+                'closing_qty' => $closing,
+            ];
+        })
+            ->filter(fn ($r) => $r['opening_qty'] != 0 || $r['transferred_in'] != 0
+                || $r['transferred_out'] != 0 || $r['sold_qty'] != 0
+                || $r['returned_qty'] != 0 || $r['closing_qty'] != 0)
+            ->sortBy('item_number')
+            ->values()
+            ->all();
+
+        return $this->reportPayload(
+            $ctx,
+            'Branch Day-End Stock',
+            [
+                ['key' => 'item_number', 'label' => 'Item #'],
+                ['key' => 'description', 'label' => 'Description'],
+                ['key' => 'opening_qty', 'label' => 'Opening'],
+                ['key' => 'transferred_in', 'label' => 'Transferred In'],
+                ['key' => 'transferred_out', 'label' => 'Transferred Out'],
+                ['key' => 'sold_qty', 'label' => 'Sold'],
+                ['key' => 'returned_qty', 'label' => 'Returned'],
+                ['key' => 'closing_qty', 'label' => 'Closing (Remaining)'],
+            ],
+            $rows,
+            [
+                ['label' => 'Items', 'value' => count($rows)],
+                ['label' => 'Total Sold Qty', 'value' => round((float) array_sum(array_column($rows, 'sold_qty')), 2)],
+                ['label' => 'Total Remaining Qty', 'value' => round((float) array_sum(array_column($rows, 'closing_qty')), 2)],
+            ],
+            'Closing is the item\'s current stock at this branch. Opening is back-calculated from closing minus this period\'s transfers/sales, so it\'s exact when the date range runs through today.',
         );
     }
 

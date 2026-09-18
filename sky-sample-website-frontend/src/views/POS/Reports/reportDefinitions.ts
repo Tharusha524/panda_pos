@@ -57,6 +57,7 @@ export const REPORT_CATEGORIES: ReportCategory[] = [
       { key: "expiry-items", title: "Expiry Items", description: "Items nearing or past expiry" },
       { key: "item-list", title: "Item List", description: "Full item catalog" },
       { key: "inventory-in-out", title: "Inventory In / Out", description: "Stock movements in the period" },
+      { key: "branch-day-end", title: "Branch Day-End Stock", description: "Opening, transferred, sold, returned and closing qty for one branch (e.g. a lorry) — pick a branch to view" },
       { key: "write-off-summary", title: "Write-off Summary", description: "Inventory write-offs" },
       { key: "write-off-details", title: "Write-off Details", description: "Write-off line details" },
       { key: "inventory-summary", title: "Inventory Summary", description: "Current stock and value" },

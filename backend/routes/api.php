@@ -36,6 +36,7 @@ use App\Http\Controllers\Api\SystemAlertController;
 use App\Http\Controllers\Api\MobileDeviceController;
 use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\RepairController;
+use App\Http\Controllers\Api\StockTransferController;
 use Illuminate\Support\Facades\Route;
 
 // Public routes (rate-limited)
@@ -260,6 +261,11 @@ Route::middleware(['auth:sanctum', 'throttle:120,1'])->group(function () {
         Route::get('/repairs/search', [RepairController::class, 'search']);
         Route::get('/repairs/context', [RepairController::class, 'context']);
         Route::post('/repairs/transfer', [RepairController::class, 'transfer']);
+
+        // Stock transfer (branch-to-branch, e.g. Main Location <-> a "Lorry" branch)
+        Route::get('/stock-transfers/context', [StockTransferController::class, 'context']);
+        Route::get('/stock-transfers/search', [StockTransferController::class, 'search']);
+        Route::post('/stock-transfers', [StockTransferController::class, 'transfer']);
 
         // Items (inventory dashboard)
         Route::get('/items/pos-search', [ItemController::class, 'posSearch']);

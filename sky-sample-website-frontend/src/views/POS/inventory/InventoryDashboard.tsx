@@ -23,6 +23,7 @@ import {
   Typography,
 } from "@mui/material";
 import SettingsIcon from "@mui/icons-material/Settings";
+import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
 import VisibilityIcon from "@mui/icons-material/Visibility";
@@ -137,6 +138,7 @@ const InventoryDashboard: React.FC = () => {
         </Typography>
         <Box sx={{ display: "flex", gap: 1 }}>
           <Button variant="outlined" startIcon={<HelpOutlineIcon />} sx={headerBtnSx} disabled>Help</Button>
+          <Button component={Link} to="/inventory/transfer" variant="outlined" startIcon={<SwapHorizIcon />} sx={headerBtnSx}>Transfer Stock</Button>
           <Button component={Link} to="/inventory/settings" variant="outlined" startIcon={<SettingsIcon />} sx={headerBtnSx}>Settings</Button>
         </Box>
       </Box>
