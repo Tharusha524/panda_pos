@@ -84,6 +84,36 @@ class StockTransferService
         )];
     }
 
+    /**
+     * Total qty transferred INTO $toLocation per item over a date range — used
+     * by the mobile app's Day End Report to show what was actually loaded
+     * onto a lorry that day, instead of a derived (Left + Sold) guess.
+     *
+     * @return array<int, array{item_number: string, description: string, qty: float}>
+     */
+    public function transferSummaryForUser(User $user, string $toLocation, string $dateFrom, string $dateTo): array
+    {
+        $company = $this->companySettingService->getCompanyForUser($user);
+        // 'all' means "every branch" (same sentinel the rest of the reports
+        // use) — sum transfers into any location instead of one specific branch.
+        $to = $toLocation === 'all' ? null : $this->locationService->assertValidForUser($user, $toLocation);
+
+        $rows = StockTransferItem::query()
+            ->join('stock_transfers', 'stock_transfers.id', '=', 'stock_transfer_items.stock_transfer_id')
+            ->where('stock_transfers.company_id', $company->id)
+            ->when($to !== null, fn ($q) => $q->where('stock_transfers.to_location', $to))
+            ->whereBetween('stock_transfers.transfer_date', [$dateFrom, $dateTo])
+            ->selectRaw('stock_transfer_items.item_number, max(stock_transfer_items.description) as description, sum(stock_transfer_items.qty) as qty')
+            ->groupBy('stock_transfer_items.item_number')
+            ->get();
+
+        return $rows->map(fn ($row) => [
+            'item_number' => $row->item_number,
+            'description' => $row->description,
+            'qty' => (float) $row->qty,
+        ])->all();
+    }
+
     public function executeTransferForUser(User $user, array $data): array
     {
         $company = $this->companySettingService->getCompanyForUser($user);

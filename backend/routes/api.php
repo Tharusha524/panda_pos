@@ -265,6 +265,7 @@ Route::middleware(['auth:sanctum', 'throttle:120,1'])->group(function () {
         // Stock transfer (branch-to-branch, e.g. Main Location <-> a "Lorry" branch)
         Route::get('/stock-transfers/context', [StockTransferController::class, 'context']);
         Route::get('/stock-transfers/search', [StockTransferController::class, 'search']);
+        Route::get('/stock-transfers/summary', [StockTransferController::class, 'summary']);
         Route::post('/stock-transfers', [StockTransferController::class, 'transfer']);
 
         // Items (inventory dashboard)

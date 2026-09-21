@@ -929,6 +929,7 @@ class ReportService
                 'sales.sales_id as bill_number',
                 'sales.customer_name as customer_name',
                 'pos_payments.payment_method as payment_method',
+                'pos_payments.payment_date as payment_date',
                 'pos_payments.cheque_number as cheque_number',
                 'pos_payments.bank_name as bank_name',
                 'customers.route as route',
@@ -944,6 +945,7 @@ class ReportService
             'cheque_number' => $a->cheque_number,
             'bank_name' => $a->bank_name,
             'route' => $a->route,
+            'payment_date' => $a->payment_date ? date('Y-m-d', strtotime($a->payment_date)) : null,
         ])->all();
 
         $totalReceived = round(array_sum(array_column($rows, 'amount_received')), 2);

@@ -48,6 +48,33 @@ class StockTransferController extends Controller
         }
     }
 
+    public function summary(Request $request)
+    {
+        try {
+            $toLocation = trim((string) $request->query('to_location', ''));
+            $dateFrom = trim((string) $request->query('date_from', ''));
+            $dateTo = trim((string) $request->query('date_to', ''));
+
+            if ($toLocation === '') {
+                throw new \Exception('to_location is required.');
+            }
+            if ($dateFrom === '' || $dateTo === '') {
+                throw new \Exception('date_from and date_to are required.');
+            }
+
+            $result = $this->stockTransferService->transferSummaryForUser(
+                $request->user(),
+                $toLocation,
+                $dateFrom,
+                $dateTo,
+            );
+
+            return response()->json(['success' => true, 'data' => $result]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 400);
+        }
+    }
+
     public function transfer(Request $request)
     {
         try {
