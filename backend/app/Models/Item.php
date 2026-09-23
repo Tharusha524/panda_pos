@@ -32,6 +32,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property float|int|string|null $qty
  * @property float|int|string|null $reorder_qty
  * @property string|null $uom
+ * @property int|null $packets_per_bundle
  * @property Carbon|null $expiry_date
  * @property string|null $item_code
  * @property string|null $supplier_item_code
@@ -69,6 +70,7 @@ class Item extends Model
         'qty',
         'reorder_qty',
         'uom',
+        'packets_per_bundle',
         'expiry_date',
         'item_code',
         'supplier_item_code',
@@ -88,6 +90,7 @@ class Item extends Model
         'track_with_inventory' => 'boolean',
         'qty' => 'decimal:2',
         'reorder_qty' => 'decimal:2',
+        'packets_per_bundle' => 'integer',
         'expiry_date' => 'date',
         'is_favourite' => 'boolean',
         'is_active' => 'boolean',

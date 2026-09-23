@@ -37,6 +37,10 @@ export interface Item {
   expired_stock_qty?: number;
   reorder_qty?: number;
   uom?: string;
+  /** Packets that make up one bundle for this item — set per item since it
+   * varies and can change over time (used by the mobile Day End Report to
+   * split Start/Sold/Left into Bundle + Pkts). Null = not configured. */
+  packets_per_bundle?: number | null;
   expiry_date?: string | null;
   nearest_expiry_date?: string | null;
   /** Main (unbatched) stock expiry when unbatched qty > 0. */

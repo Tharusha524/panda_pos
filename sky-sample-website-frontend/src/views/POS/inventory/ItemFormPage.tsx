@@ -118,6 +118,7 @@ function emptyForm(): ItemPayload {
     qty: 0,
     reorder_qty: 0,
     uom: "pcs",
+    packets_per_bundle: null,
     expiry_date: null,
     item_code: "",
     supplier_item_code: "",
@@ -224,6 +225,7 @@ const ItemFormPage: React.FC = () => {
       qty: existingItem.qty ?? 0,
       reorder_qty: existingItem.reorder_qty ?? 0,
       uom: existingItem.uom ?? "pcs",
+      packets_per_bundle: existingItem.packets_per_bundle ?? null,
       expiry_date: existingItem.expiry_date ?? null,
       item_code: existingItem.item_code ?? "",
       supplier_item_code: existingItem.supplier_item_code ?? "",
@@ -856,6 +858,26 @@ const ItemFormPage: React.FC = () => {
                     Item Settings → Units of measure
                   </Link>
                   .
+                </Typography>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Packets per Bundle"
+                  type="number"
+                  value={form.packets_per_bundle ?? ""}
+                  onChange={(e) =>
+                    setField(
+                      "packets_per_bundle",
+                      e.target.value === "" ? null : parseInt(e.target.value, 10) || null
+                    )
+                  }
+                  inputProps={{ min: 1, step: 1 }}
+                  sx={fieldSx}
+                />
+                <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block" }}>
+                  How many packets make up one bundle of this item. Leave blank if not sold in bundles.
                 </Typography>
               </Grid>
               <Grid item xs={12} sm={6}>

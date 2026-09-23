@@ -774,6 +774,9 @@ class ItemService
             'qty' => (float) ($data['qty'] ?? 0),
             'reorder_qty' => (float) ($data['reorder_qty'] ?? 0),
             'uom' => $data['uom'] ?? 'pcs',
+            'packets_per_bundle' => isset($data['packets_per_bundle']) && $data['packets_per_bundle'] !== ''
+                ? (int) $data['packets_per_bundle']
+                : null,
             'expiry_date' => !empty($data['expiry_date']) ? $data['expiry_date'] : null,
             'item_code' => $data['item_code'] ?? null,
             'supplier_item_code' => $data['supplier_item_code'] ?? null,
@@ -850,6 +853,7 @@ class ItemService
             'unbatched_qty' => $stockMeta['unbatched_qty'],
             'reorder_qty' => (float) ($item->reorder_qty ?? 0),
             'uom' => $item->uom ?? 'pcs',
+            'packets_per_bundle' => $item->packets_per_bundle !== null ? (int) $item->packets_per_bundle : null,
             'expiry_date' => $item->expiry_date?->format('Y-m-d'),
             'nearest_expiry_date' => $expiryMeta['nearest_expiry_date'],
             'main_expiry_date' => $expiryMeta['main_expiry_date'],

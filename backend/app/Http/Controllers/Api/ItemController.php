@@ -582,6 +582,7 @@ class ItemController extends Controller
             'qty' => 'nullable|numeric|min:0',
             'reorder_qty' => 'nullable|numeric|min:0',
             'uom' => 'nullable|string|max:20',
+            'packets_per_bundle' => 'nullable|integer|min:1',
             'expiry_date' => 'nullable|date',
             'item_code' => 'nullable|string|max:100',
             'supplier_item_code' => 'nullable|string|max:100',
