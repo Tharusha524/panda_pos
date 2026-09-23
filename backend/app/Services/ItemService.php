@@ -355,6 +355,10 @@ class ItemService
             ]
         ));
 
+        if (array_key_exists('packets_per_bundle', $data)) {
+            $this->syncPacketsPerBundleAcrossLocations($item);
+        }
+
         return $this->formatItem($item);
     }
 
@@ -409,12 +413,30 @@ class ItemService
 
         $item->save();
 
+        if (array_key_exists('packets_per_bundle', $data)) {
+            $this->syncPacketsPerBundleAcrossLocations($item);
+        }
+
         return $this->formatItem($item->fresh());
     }
 
     public function deleteForUser(User $user, int $id): void
     {
         $this->findForUser($user, $id)->delete();
+    }
+
+    /**
+     * Packets-per-bundle is the same physical item regardless of which
+     * branch's copy you're looking at, so setting it on any one branch's
+     * row applies it to every other branch's row for that item too —
+     * instead of it silently drifting out of sync between branches.
+     */
+    private function syncPacketsPerBundleAcrossLocations(Item $item): void
+    {
+        Item::where('company_id', $item->company_id)
+            ->where('item_number', $item->item_number)
+            ->where('id', '!=', $item->id)
+            ->update(['packets_per_bundle' => $item->packets_per_bundle]);
     }
 
     public function getCategoriesForUser(User $user, ?string $location = null)

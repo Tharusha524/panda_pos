@@ -144,6 +144,7 @@ class LocationService
             'default_discount_type',
             'max_discount',
             'uom',
+            'packets_per_bundle',
             'item_code',
             'sku',
         ]);
