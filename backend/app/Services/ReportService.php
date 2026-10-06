@@ -927,6 +927,7 @@ class ReportService
             ->get([
                 'sale_payment_allocations.amount as allocated_amount',
                 'sales.sales_id as bill_number',
+                'sales.sale_date as bill_date',
                 'sales.customer_name as customer_name',
                 'pos_payments.payment_method as payment_method',
                 'pos_payments.payment_date as payment_date',
@@ -938,6 +939,7 @@ class ReportService
         $rows = $allocations->map(fn ($a) => [
             'customer' => $a->customer_name ?: 'Customer',
             'bill_number' => $a->bill_number,
+            'bill_date' => $a->bill_date ? date('Y-m-d', strtotime($a->bill_date)) : null,
             'payment_method' => $a->payment_method,
             'amount_received' => round((float) $a->allocated_amount, 2),
             // Not in the on-screen columns below — used by the Excel export
@@ -2090,7 +2092,16 @@ class ReportService
             ->where('payment_method', 'like', '%cash%')
             ->sum('net_amount'), 2);
 
-        $net = round($cashSales - $cashExpenses - $cashPaidOut + $cashPurchaseReturns - $cashRefunds, 2);
+        // Cash a credit customer pays against their outstanding balance —
+        // recorded in pos_payments as source_type 'customer_payment', which
+        // incomingPaymentsQuery() deliberately excludes (it's not a new
+        // sale), so it needs its own line here.
+        $cashCustomerSettlements = round((float) $this->paymentsInPeriodQuery($ctx)
+            ->where('source_type', PaymentService::SOURCE_CUSTOMER_PAYMENT)
+            ->where('payment_method', 'like', '%cash%')
+            ->sum('paid_amount'), 2);
+
+        $net = round($cashSales - $cashExpenses - $cashPaidOut + $cashPurchaseReturns - $cashRefunds + $cashCustomerSettlements, 2);
 
         return $this->reportPayload(
             $ctx,
@@ -2101,6 +2112,7 @@ class ReportService
             ],
             [
                 ['item' => 'Cash Sales (Income)', 'amount' => $cashSales],
+                ['item' => 'Cash Received (Customer Settlements)', 'amount' => $cashCustomerSettlements],
                 ['item' => 'Cash Refunds (Sales Returns)', 'amount' => -$cashRefunds],
                 ['item' => 'Cash Expenses', 'amount' => -$cashExpenses],
                 ['item' => 'Cash Paid Out (Purchase/Supplier)', 'amount' => -$cashPaidOut],
@@ -2108,7 +2120,7 @@ class ReportService
                 ['item' => 'Estimated Cash in Hand', 'amount' => $net],
             ],
             [['label' => 'Net Cash Position', 'value' => $net]],
-            'Cash Sales includes the Cash portion of split-payment sales, and is shown gross — a returned sale\'s cash is deducted separately under Cash Refunds, not from Cash Sales itself. Customer sale payments are included in Cash Sales (income), not subtracted as payouts.',
+            'Cash Sales includes the Cash portion of split-payment sales, and is shown gross — a returned sale\'s cash is deducted separately under Cash Refunds, not from Cash Sales itself. Customer sale payments are included in Cash Sales (income), not subtracted as payouts. Cash Received (Customer Settlements) is cash paid by credit customers against their outstanding balance.',
         );
     }
 

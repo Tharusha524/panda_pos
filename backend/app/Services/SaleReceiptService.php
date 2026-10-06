@@ -24,7 +24,7 @@ class SaleReceiptService
         $company = $this->companySettingService->getCompanyForUser($user);
         $sale = Sale::where('company_id', $company->id)
             ->where('id', $saleId)
-            ->with(['items', 'customer'])
+            ->with(['items', 'customer', 'paymentSplits'])
             ->first();
 
         if (!$sale) {
@@ -292,6 +292,13 @@ class SaleReceiptService
             'net_amount' => (float) $sale->net_amount,
             'amount_received' => $sale->amount_received !== null ? (float) $sale->amount_received : null,
             'cheque_number' => $sale->cheque_number,
+            'bank_name' => $sale->bank_name,
+            'payment_splits' => $sale->paymentSplits->map(fn ($split) => [
+                'payment_method' => $split->payment_method,
+                'amount' => (float) $split->amount,
+                'bank_name' => $split->bank_name,
+                'cheque_number' => $split->cheque_number,
+            ])->values()->all(),
             'items' => $items->map(fn (SaleItem $line) => [
                 'item_id' => $line->item_id,
                 'item_number' => $line->item_number,
