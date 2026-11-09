@@ -25,6 +25,8 @@ import {
   createRole,
   deleteRole,
   fetchRoles,
+  isMobilePermission,
+  MOBILE_CONFIGURED,
   updateRole,
   type Role,
   type RolePayload,
@@ -247,17 +249,39 @@ const RolesTable: React.FC<RolesTableProps> = ({ embedded = false }) => {
                 <TableCell>{role.description ?? "—"}</TableCell>
                 <TableCell>
                   <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
-                    {(role.permissions ?? []).length === 0 && "—"}
-                    {(role.permissions ?? []).slice(0, 2).map((perm) => (
-                      <Chip key={perm} label={perm} size="small" />
-                    ))}
-                    {(role.permissions ?? []).length > 2 && (
-                      <Chip
-                        label={`+${role.permissions.length - 2} more`}
-                        size="small"
-                        variant="outlined"
-                      />
-                    )}
+                    {(() => {
+                      const all = role.permissions ?? [];
+                      const website = all.filter((p) => !isMobilePermission(p));
+                      const mobileConfigured = all.includes(MOBILE_CONFIGURED);
+                      const mobileCount = all.filter(
+                        (p) => isMobilePermission(p) && p !== MOBILE_CONFIGURED
+                      ).length;
+                      return (
+                        <>
+                          {website.length === 0 && "—"}
+                          {website.slice(0, 2).map((perm) => (
+                            <Chip key={perm} label={perm} size="small" />
+                          ))}
+                          {website.length > 2 && (
+                            <Chip
+                              label={`+${website.length - 2} more`}
+                              size="small"
+                              variant="outlined"
+                            />
+                          )}
+                          <Chip
+                            label={
+                              mobileConfigured
+                                ? `Mobile: ${mobileCount} allowed`
+                                : "Mobile: full access"
+                            }
+                            size="small"
+                            color="info"
+                            variant="outlined"
+                          />
+                        </>
+                      );
+                    })()}
                   </Box>
                 </TableCell>
                 <TableCell align="center">{role.users_count ?? 0}</TableCell>

@@ -18,6 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'subscription.active' => \App\Http\Middleware\EnsureSubscriptionPaid::class,
+            'mobile.can' => \App\Http\Middleware\EnsureMobilePermission::class,
         ]);
         $middleware->append(\App\Http\Middleware\SecurityHeaders::class);
     })

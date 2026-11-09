@@ -293,13 +293,13 @@ class SaleReceiptService
             'amount_received' => $sale->amount_received !== null ? (float) $sale->amount_received : null,
             'cheque_number' => $sale->cheque_number,
             'bank_name' => $sale->bank_name,
-            'payment_splits' => $sale->paymentSplits->map(fn ($split) => [
+            'payment_splits' => $sale->paymentSplits->map(fn($split) => [
                 'payment_method' => $split->payment_method,
                 'amount' => (float) $split->amount,
                 'bank_name' => $split->bank_name,
                 'cheque_number' => $split->cheque_number,
             ])->values()->all(),
-            'items' => $items->map(fn (SaleItem $line) => [
+            'items' => $items->map(fn(SaleItem $line) => [
                 'item_id' => $line->item_id,
                 'item_number' => $line->item_number,
                 'description' => $line->description,

@@ -10,15 +10,23 @@ import {
   DialogTitle,
   FormControlLabel,
   Switch,
+  Tab,
+  Tabs,
   TextField,
   Typography,
 } from "@mui/material";
+import { useQuery } from "@tanstack/react-query";
 import {
+  allMobileKeys,
   AVAILABLE_PERMISSIONS,
+  fetchMobilePermissionCatalog,
+  isMobilePermission,
+  MOBILE_CONFIGURED,
   type Role,
   type RolePayload,
 } from "../../../../api/Settings/rolesApi";
 import { POS_DIALOG_PAPER_SX, POS_PRIMARY_BUTTON_SX } from "../../posDialogTheme";
+import MobilePermissionsEditor from "./MobilePermissionsEditor";
 
 interface RoleFormDialogProps {
   open: boolean;
@@ -46,15 +54,37 @@ const RoleFormDialog: React.FC<RoleFormDialogProps> = ({
   const [description, setDescription] = useState("");
   const [permissions, setPermissions] = useState<string[]>([]);
   const [isActive, setIsActive] = useState(true);
+  const [activeTab, setActiveTab] = useState<"website" | "mobile">("website");
+  // null = role has never had its Mobile App section saved (full mobile access).
+  const [savedMobile, setSavedMobile] = useState<string[] | null>(null);
+  const [mobileSelected, setMobileSelected] = useState<Set<string>>(new Set());
 
   const isEdit = mode === "edit";
 
+  const {
+    data: mobileCatalog,
+    isLoading: mobileCatalogLoading,
+    isError: mobileCatalogError,
+  } = useQuery({
+    queryKey: ["mobile-permission-catalog"],
+    queryFn: fetchMobilePermissionCatalog,
+    enabled: open,
+    staleTime: 5 * 60 * 1000,
+  });
+  const catalogReady = !!mobileCatalog && mobileCatalog.length > 0;
+
   useEffect(() => {
     if (open && isEdit && role) {
+      const all = role.permissions ?? [];
       setName(role.name);
       setSlug(role.slug);
       setDescription(role.description ?? "");
-      setPermissions(role.permissions ?? []);
+      setPermissions(all.filter((p) => !isMobilePermission(p)));
+      setSavedMobile(
+        all.includes(MOBILE_CONFIGURED)
+          ? all.filter((p) => isMobilePermission(p) && p !== MOBILE_CONFIGURED)
+          : null
+      );
       setIsActive(role.is_active);
     }
     if (open && !isEdit) {
@@ -62,9 +92,22 @@ const RoleFormDialog: React.FC<RoleFormDialogProps> = ({
       setSlug("");
       setDescription("");
       setPermissions([]);
+      setSavedMobile(null);
       setIsActive(true);
     }
+    if (open) {
+      setActiveTab("website");
+    }
   }, [open, isEdit, role]);
+
+  // Show the role's real mobile access: never-saved roles have everything on.
+  useEffect(() => {
+    if (!open || !catalogReady) return;
+    const known = new Set(allMobileKeys(mobileCatalog));
+    setMobileSelected(
+      savedMobile === null ? known : new Set(savedMobile.filter((k) => known.has(k)))
+    );
+  }, [open, catalogReady, mobileCatalog, savedMobile]);
 
   const togglePermission = (permission: string) => {
     setPermissions((prev) =>
@@ -75,11 +118,21 @@ const RoleFormDialog: React.FC<RoleFormDialogProps> = ({
   };
 
   const handleSubmit = () => {
+    let mobile: string[];
+    if (catalogReady) {
+      mobile = [MOBILE_CONFIGURED, ...mobileSelected];
+    } else if (savedMobile !== null) {
+      // Catalog didn't load — keep the role's mobile access exactly as it was.
+      mobile = [MOBILE_CONFIGURED, ...savedMobile];
+    } else {
+      mobile = [];
+    }
+
     const payload: RolePayload = {
       name,
       slug: slug || undefined,
       description: description || undefined,
-      permissions,
+      permissions: [...permissions, ...mobile],
       is_active: isActive,
     };
 
@@ -143,24 +196,45 @@ const RoleFormDialog: React.FC<RoleFormDialogProps> = ({
           label="Active"
           sx={{ mt: 1 }}
         />
-        <Typography variant="subtitle2" sx={{ mt: 2, mb: 1, color: "var(--pallet-blue)" }}>
-          Permissions (included in this role)
-        </Typography>
-        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
-          {AVAILABLE_PERMISSIONS.map((permission) => (
-            <Chip
-              key={permission}
-              label={permission}
-              clickable
-              onClick={() => togglePermission(permission)}
-              sx={
-                permissions.includes(permission)
-                  ? { bgcolor: "var(--pallet-blue)", color: "#fff" }
-                  : undefined
-              }
-            />
-          ))}
-        </Box>
+        <Tabs
+          value={activeTab}
+          onChange={(_, value) => setActiveTab(value)}
+          sx={{ mt: 2, borderBottom: 1, borderColor: "divider" }}
+        >
+          <Tab value="website" label="Website" sx={{ textTransform: "none", fontWeight: 600 }} />
+          <Tab value="mobile" label="Mobile App" sx={{ textTransform: "none", fontWeight: 600 }} />
+        </Tabs>
+        {activeTab === "website" && (
+          <>
+            <Typography variant="subtitle2" sx={{ mt: 2, mb: 1, color: "var(--pallet-blue)" }}>
+              Permissions (included in this role)
+            </Typography>
+            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+              {AVAILABLE_PERMISSIONS.map((permission) => (
+                <Chip
+                  key={permission}
+                  label={permission}
+                  clickable
+                  onClick={() => togglePermission(permission)}
+                  sx={
+                    permissions.includes(permission)
+                      ? { bgcolor: "var(--pallet-blue)", color: "#fff" }
+                      : undefined
+                  }
+                />
+              ))}
+            </Box>
+          </>
+        )}
+        {activeTab === "mobile" && (
+          <MobilePermissionsEditor
+            catalog={mobileCatalog}
+            isLoading={mobileCatalogLoading}
+            isError={mobileCatalogError}
+            selected={mobileSelected}
+            onChange={setMobileSelected}
+          />
+        )}
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>
         <Button onClick={onClose}>Cancel</Button>

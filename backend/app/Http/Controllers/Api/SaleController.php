@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Bank;
 use App\Services\CompanySettingService;
+use App\Services\PermissionService;
 use App\Services\SaleService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -14,7 +16,30 @@ class SaleController extends Controller
     public function __construct(
         private SaleService $saleService,
         private CompanySettingService $companySettingService,
+        private PermissionService $permissionService,
     ) {
+    }
+
+    /**
+     * Mobile app only: refuse sale features the user's role has locked
+     * (returns, exchange, hold, credit/cheque/bank/split payments).
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    private function mobileSaleDenied(Request $request, array $payload): ?JsonResponse
+    {
+        if (
+            !$this->permissionService->isMobileRequest($request)
+            || $this->permissionService->mobileSaleDenial($request->user(), $payload) === null
+        ) {
+            return null;
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => PermissionService::MOBILE_DENIED_MESSAGE,
+            'code' => 'MOBILE_PERMISSION_DENIED',
+        ], 403);
     }
 
     public function index(Request $request)
@@ -92,6 +117,9 @@ class SaleController extends Controller
     {
         try {
             $validated = $this->validateSale($request, false);
+            if ($denied = $this->mobileSaleDenied($request, $validated)) {
+                return $denied;
+            }
             $sale = $this->saleService->completeHoldForUser($request->user(), $id, $validated);
             $receipt = $this->saleService->buildReceiptFromSale($request->user(), $sale);
 
@@ -169,6 +197,9 @@ class SaleController extends Controller
     {
         try {
             $validated = $this->validateSale($request);
+            if ($denied = $this->mobileSaleDenied($request, $validated)) {
+                return $denied;
+            }
             $user = $request->user();
             $sale = $this->saleService->createForUser($user, $validated);
             $receipt = $this->saleService->buildReceiptFromSale($user, $sale);
@@ -191,6 +222,9 @@ class SaleController extends Controller
     {
         try {
             $validated = $this->validateSale($request, false);
+            if ($denied = $this->mobileSaleDenied($request, $validated)) {
+                return $denied;
+            }
             $sale = $this->saleService->updateForUser($request->user(), $id, $validated);
 
             return response()->json([

@@ -22,6 +22,7 @@ class RoleController extends Controller
                 'success' => true,
                 'data' => $this->roleService->getAll(),
                 'permission_catalog' => $this->permissionService->availablePermissions(),
+                'mobile_permission_catalog' => $this->permissionService->mobilePermissionCatalog(),
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -47,6 +48,7 @@ class RoleController extends Controller
                 'is_active' => 'nullable|boolean',
             ]);
 
+            $this->assertKnownMobilePermissions($validated['permissions'] ?? []);
             $role = $this->roleService->create($validated);
 
             return response()->json([
@@ -93,6 +95,7 @@ class RoleController extends Controller
                 'is_active' => 'nullable|boolean',
             ]);
 
+            $this->assertKnownMobilePermissions($validated['permissions'] ?? []);
             $role = $this->roleService->update($id, $validated);
 
             return response()->json([
@@ -105,6 +108,24 @@ class RoleController extends Controller
                 'success' => false,
                 'message' => $e->getMessage(),
             ], 400);
+        }
+    }
+
+    /**
+     * @param  array<int, mixed>  $permissions
+     */
+    private function assertKnownMobilePermissions(array $permissions): void
+    {
+        $known = array_flip(array_merge(
+            $this->permissionService->mobilePermissionKeys(),
+            [PermissionService::MOBILE_CONFIGURED],
+        ));
+
+        foreach ($permissions as $permission) {
+            $permission = (string) $permission;
+            if (str_starts_with($permission, 'mobile.') && !isset($known[$permission])) {
+                throw new \Exception("Unknown mobile permission: {$permission}");
+            }
         }
     }
 

@@ -126,7 +126,7 @@ Route::middleware(['auth:sanctum', 'throttle:120,1'])->group(function () {
         Route::put('/settings/notifications/payment', [CustomerNotificationSettingController::class, 'updatePayment']);
 
         Route::get('/branches', [BranchController::class, 'index']);
-        Route::post('/branches', [BranchController::class, 'store']);
+        Route::post('/branches', [BranchController::class, 'store'])->middleware('mobile.can:mobile.products.add_location');
         Route::put('/branches/{id}', [BranchController::class, 'update']);
         Route::delete('/branches/{id}', [BranchController::class, 'destroy']);
 
@@ -190,7 +190,7 @@ Route::middleware(['auth:sanctum', 'throttle:120,1'])->group(function () {
         Route::get('/purchases', [PurchaseController::class, 'index']);
         Route::get('/purchases/next-invoice-id', [PurchaseController::class, 'nextInvoiceId']);
         Route::get('/purchases/{id}', [PurchaseController::class, 'show']);
-        Route::post('/purchases', [PurchaseController::class, 'store']);
+        Route::post('/purchases', [PurchaseController::class, 'store'])->middleware('mobile.can:mobile.purchases.create');
         Route::put('/purchases/{id}', [PurchaseController::class, 'update']);
         Route::delete('/purchases/{id}', [PurchaseController::class, 'destroy']);
 
@@ -210,9 +210,9 @@ Route::middleware(['auth:sanctum', 'throttle:120,1'])->group(function () {
         Route::get('/expenses', [ExpenseController::class, 'index']);
         Route::get('/expenses/next-reference-no', [ExpenseController::class, 'nextReferenceNo']);
         Route::get('/expenses/{id}', [ExpenseController::class, 'show']);
-        Route::post('/expenses', [ExpenseController::class, 'store']);
-        Route::put('/expenses/{id}', [ExpenseController::class, 'update']);
-        Route::delete('/expenses/{id}', [ExpenseController::class, 'destroy']);
+        Route::post('/expenses', [ExpenseController::class, 'store'])->middleware('mobile.can:mobile.expenses.create');
+        Route::put('/expenses/{id}', [ExpenseController::class, 'update'])->middleware('mobile.can:mobile.expenses.edit');
+        Route::delete('/expenses/{id}', [ExpenseController::class, 'destroy'])->middleware('mobile.can:mobile.expenses.delete');
 
         // Sales
         Route::get('/sales/pos-context', [SaleController::class, 'posContext']);
@@ -225,7 +225,7 @@ Route::middleware(['auth:sanctum', 'throttle:120,1'])->group(function () {
         Route::post('/sales', [SaleController::class, 'store']);
         Route::post('/sales/{id}/complete-hold', [SaleController::class, 'completeHold']);
         Route::put('/sales/{id}', [SaleController::class, 'update']);
-        Route::delete('/sales/{id}', [SaleController::class, 'destroy']);
+        Route::delete('/sales/{id}', [SaleController::class, 'destroy'])->middleware('mobile.can:mobile.sales.hold_delete');
 
         // Shipping
         Route::get('/shipments', [ShipmentController::class, 'index']);
@@ -247,14 +247,14 @@ Route::middleware(['auth:sanctum', 'throttle:120,1'])->group(function () {
         Route::get('/customers/types', [CustomerController::class, 'types']);
         Route::post('/customers/types', [CustomerController::class, 'storeType']);
         Route::get('/customers/{id}', [CustomerController::class, 'show']);
-        Route::post('/customers', [CustomerController::class, 'store']);
-        Route::put('/customers/{id}', [CustomerController::class, 'update']);
-        Route::post('/customers/{id}/receive-payment', [CustomerController::class, 'receivePayment']);
+        Route::post('/customers', [CustomerController::class, 'store'])->middleware('mobile.can:mobile.customers.create,mobile.sales.create_customer');
+        Route::put('/customers/{id}', [CustomerController::class, 'update'])->middleware('mobile.can:mobile.customers.edit');
+        Route::post('/customers/{id}/receive-payment', [CustomerController::class, 'receivePayment'])->middleware('mobile.can:mobile.customers.receive_payment');
         Route::get('/customers/{id}/outstanding-bills', [CustomerController::class, 'outstandingBills']);
         Route::get('/customers/{id}/payments', [CustomerController::class, 'payments']);
-        Route::post('/customers/{id}/payments/{paymentId}/return', [CustomerController::class, 'returnPayment']);
-        Route::post('/customers/{id}/sales/{saleId}/return-cheque', [CustomerController::class, 'returnSaleCheque']);
-        Route::delete('/customers/{id}', [CustomerController::class, 'destroy']);
+        Route::post('/customers/{id}/payments/{paymentId}/return', [CustomerController::class, 'returnPayment'])->middleware('mobile.can:mobile.customers.cheque_return');
+        Route::post('/customers/{id}/sales/{saleId}/return-cheque', [CustomerController::class, 'returnSaleCheque'])->middleware('mobile.can:mobile.customers.cheque_return');
+        Route::delete('/customers/{id}', [CustomerController::class, 'destroy'])->middleware('mobile.can:mobile.customers.delete');
 
         // Repair
         Route::get('/repairs', [RepairController::class, 'index']);
@@ -266,7 +266,7 @@ Route::middleware(['auth:sanctum', 'throttle:120,1'])->group(function () {
         Route::get('/stock-transfers/context', [StockTransferController::class, 'context']);
         Route::get('/stock-transfers/search', [StockTransferController::class, 'search']);
         Route::get('/stock-transfers/summary', [StockTransferController::class, 'summary']);
-        Route::post('/stock-transfers', [StockTransferController::class, 'transfer']);
+        Route::post('/stock-transfers', [StockTransferController::class, 'transfer'])->middleware('mobile.can:mobile.products.tog');
 
         // Items (inventory dashboard)
         Route::get('/items/pos-search', [ItemController::class, 'posSearch']);
@@ -280,21 +280,21 @@ Route::middleware(['auth:sanctum', 'throttle:120,1'])->group(function () {
         Route::put('/items/subcategories/{id}', [ItemController::class, 'updateSubCategory']);
         Route::delete('/items/subcategories/{id}', [ItemController::class, 'destroySubCategory']);
         Route::patch('/items/{id}/purchase-price', [ItemController::class, 'updatePurchasePrice']);
-        Route::post('/items/{id}/image', [ItemController::class, 'uploadImage']);
+        Route::post('/items/{id}/image', [ItemController::class, 'uploadImage'])->middleware('mobile.can:mobile.products.add,mobile.products.edit');
         Route::get('/items/{id}/history', [ItemController::class, 'history']);
         Route::get('/items/{id}/cost-view', [ItemController::class, 'costView']);
-        Route::post('/items/{id}/adjust', [ItemController::class, 'adjust']);
+        Route::post('/items/{id}/adjust', [ItemController::class, 'adjust'])->middleware('mobile.can:mobile.products.stock_adjust');
         Route::post('/items/{id}/write-off', [ItemController::class, 'writeOff']);
         Route::get('/items/{id}/batches', [ItemController::class, 'batches']);
         Route::get('/items/{id}/inventory-breakdown', [ItemController::class, 'inventoryBreakdown']);
-        Route::post('/items/{id}/batches', [ItemController::class, 'storeBatch']);
-        Route::put('/items/{id}/batches/{batchId}', [ItemController::class, 'updateBatch']);
-        Route::delete('/items/{id}/batches/{batchId}', [ItemController::class, 'destroyBatch']);
+        Route::post('/items/{id}/batches', [ItemController::class, 'storeBatch'])->middleware('mobile.can:mobile.products.batches');
+        Route::put('/items/{id}/batches/{batchId}', [ItemController::class, 'updateBatch'])->middleware('mobile.can:mobile.products.batches');
+        Route::delete('/items/{id}/batches/{batchId}', [ItemController::class, 'destroyBatch'])->middleware('mobile.can:mobile.products.batch_delete');
         Route::get('/items/{id}/additional-charges', [ItemController::class, 'additionalCharges']);
         Route::put('/items/{id}/additional-charges', [ItemController::class, 'saveAdditionalCharges']);
         Route::get('/items/{id}', [ItemController::class, 'show']);
-        Route::post('/items', [ItemController::class, 'store']);
-        Route::put('/items/{id}', [ItemController::class, 'update']);
+        Route::post('/items', [ItemController::class, 'store'])->middleware('mobile.can:mobile.products.add');
+        Route::put('/items/{id}', [ItemController::class, 'update'])->middleware('mobile.can:mobile.products.edit');
         Route::delete('/items/{id}', [ItemController::class, 'destroy']);
 
         // Roles

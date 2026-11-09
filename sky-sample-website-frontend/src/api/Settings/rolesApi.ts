@@ -25,6 +25,35 @@ export async function fetchRoles(): Promise<Role[]> {
   return res.data.data;
 }
 
+export interface MobilePermissionItem {
+  key: string;
+  label: string;
+  requires?: string;
+}
+
+export interface MobilePermissionTab {
+  key: string;
+  label: string;
+  note?: string;
+  groups: { label: string; items: MobilePermissionItem[] }[];
+}
+
+/** Marks a role whose Mobile App section has been saved; without it the role keeps full mobile access. */
+export const MOBILE_CONFIGURED = "mobile.configured";
+
+export const isMobilePermission = (permission: string) => permission.startsWith("mobile.");
+
+export const allMobileKeys = (catalog: MobilePermissionTab[]): string[] =>
+  catalog.flatMap((tab) => [
+    tab.key,
+    ...tab.groups.flatMap((g) => g.items.map((i) => i.key)),
+  ]);
+
+export async function fetchMobilePermissionCatalog(): Promise<MobilePermissionTab[]> {
+  const res = await axios.get("/api/roles");
+  return res.data.mobile_permission_catalog ?? [];
+}
+
 export async function createRole(payload: RolePayload): Promise<Role> {
   const res = await axios.post("/api/roles", payload);
   return res.data.data;

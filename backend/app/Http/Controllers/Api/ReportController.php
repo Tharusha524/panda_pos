@@ -3,13 +3,16 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Services\PermissionService;
 use App\Services\ReportService;
 use Illuminate\Http\Request;
 
 class ReportController extends Controller
 {
-    public function __construct(private ReportService $reportService)
-    {
+    public function __construct(
+        private ReportService $reportService,
+        private PermissionService $permissionService,
+    ) {
     }
 
     public function index()
@@ -22,6 +25,17 @@ class ReportController extends Controller
 
     public function show(Request $request, string $reportKey)
     {
+        if (
+            $this->permissionService->isMobileRequest($request)
+            && !$this->permissionService->mobileCanViewReport($request->user(), $reportKey)
+        ) {
+            return response()->json([
+                'success' => false,
+                'message' => PermissionService::MOBILE_DENIED_MESSAGE,
+                'code' => 'MOBILE_PERMISSION_DENIED',
+            ], 403);
+        }
+
         try {
             $filters = [
                 'date_from' => $request->query('date_from'),
